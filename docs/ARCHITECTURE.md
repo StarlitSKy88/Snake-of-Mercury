@@ -1,4 +1,4 @@
-# Unified Autopilot — 架构文档
+# Snake of Mercury (水银之蛇) — 架构文档
 
 > **版本**: v2.4 (TeamCreate 真对抗架构)
 > **生成时间**: 2026-04-05
@@ -33,7 +33,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │                   🐍 Snake of Mercury (水银之蛇)                                 │
-│               Unified Autopilot 全自动闭环开发引擎                                │
+│               Snake of Mercury (水银之蛇) 全自动闭环开发引擎                                │
 ├──────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
 │  用户需求 (1-4 句话)                                                              │
@@ -208,7 +208,7 @@ TeamDelete()
 ```
 ~/.claude/skills/
 └── harness/
-    └── SKILL.md                      # Unified Autopilot 入口 skill
+    └── SKILL.md                      # Snake of Mercury (水银之蛇) 入口 skill
 ```
 
 ### 6.3 项目源文件（Snake-of-Mercury）
