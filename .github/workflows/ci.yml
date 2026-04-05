@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    name: Lint & Validate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Agent files
+        run: |
+          echo "🔍 Validating Agent files..."
+          REQUIRED_AGENTS=(
+            "harness-coordinator.md"
+            "phase0-insight-challenger.md"
+            "phase0-innovation-officer.md"
+            "phase0-business-operator.md"
+            "phase0-quality-supervisor.md"
+          )
+
+          for agent in "${REQUIRED_AGENTS[@]}"; do
+            if [ -f "agents/$agent" ]; then
+              echo "✅ $agent exists"
+              # Check for required frontmatter
+              if grep -q "^name:" "agents/$agent" && grep -q "^description:" "agents/$agent"; then
+                echo "  ✅ Has valid frontmatter"
+              else
+                echo "  ❌ Missing required frontmatter (name, description)"
+                exit 1
+              fi
+              # Check for SendMessage support
+              if grep -q "SendMessage" "agents/$agent"; then
+                echo "  ✅ Has SendMessage support"
+              else
+                echo "  ⚠️  No SendMessage in tools"
+              fi
+            else
+              echo "❌ Missing: agents/$agent"
+              exit 1
+            fi
+          done
+
+      - name: Validate Skill files
+        run: |
+          echo "🔍 Validating Skill files..."
+          if [ -f "skills/harness/SKILL.md" ]; then
+            echo "✅ skills/harness/SKILL.md exists"
+            if grep -q "^name:" "skills/harness/SKILL.md" && grep -q "^description:" "skills/harness/SKILL.md"; then
+              echo "  ✅ Has valid frontmatter"
+            else
+              echo "  ❌ Missing required frontmatter"
+              exit 1
+            fi
+          else
+            echo "❌ Missing: skills/harness/SKILL.md"
+            exit 1
+          fi
+
+      - name: Security scan
+        run: |
+          echo "🔒 Scanning for hardcoded secrets..."
+          # Check for API keys, tokens, passwords
+          if grep -rqE "(sk-[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{16}|ghp_[a-zA-Z0-9]{36}|password\s*=\s*['\"][^'\"]+['\"]|api[_-]?key\s*=\s*['\"][^'\"]+['\"])" agents/ skills/ 2>/dev/null; then
+            echo "❌ SECURITY: Hardcoded secrets found!"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets found"
+          fi
+
+          # Check for absolute paths
+          if grep -rqE "/Users/|/home/|C:\\\\Users" agents/ skills/ docs/ 2>/dev/null; then
+            echo "❌ SECURITY: Absolute paths found!"
+            exit 1
+          else
+            echo "✅ No absolute paths found"
+          fi
+
+      - name: Validate shell scripts
+        run: |
+          echo "🔍 Validating shell scripts..."
+          for script in *.sh; do
+            if [ -f "$script" ]; then
+              bash -n "$script" && echo "✅ $script syntax OK" || exit 1
+            fi
+          done
+
+      - name: Check documentation
+        run: |
+          echo "🔍 Checking documentation..."
+          # README must exist
+          [ -f "README.md" ] && echo "✅ README.md exists" || exit 1
+          [ -f "README.zh-CN.md" ] && echo "✅ README.zh-CN.md exists" || exit 1
+          [ -f "LICENSE" ] && echo "✅ LICENSE exists" || exit 1
+          [ -f "docs/ARCHITECTURE.md" ] && echo "✅ docs/ARCHITECTURE.md exists" || exit 1
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║                  ✅ CI Validation Passed!                      ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
