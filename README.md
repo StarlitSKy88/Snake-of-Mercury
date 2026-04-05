@@ -1,177 +1,202 @@
-# Snake of Mercury (水银之蛇)
-
-> **Unified Autopilot** — Claude Code 全自动闭环开发引擎
+# Unified Autopilot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Agent%20System-blue)](https://docs.anthropic.com/en/docs/claude-code)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-1.000-blue)](https://docs.anthropic.com/en/docs/claude-code)
+[![GitHub Stars](https://img.shields.io/github/stars/StarlitSKy88/Snake-of-Mercury?style=social)](https://github.com/StarlitSKy88/Snake-of-Mercury)
 
-**从 1-4 句话的产品想法，到完整可运行的产品——全自动、无人值守。**
+**[English](#) | [中文](./README.zh-CN.md)**
 
-## 这是什么？
+---
 
-Snake of Mercury 是一个基于 Claude Code Agent 系统的**全自动化闭环开发引擎**。它不只是一个代码生成器——它会：
+> **From 1-4 sentences of a product idea to a fully working application — 100% automated, hands-off.**
 
-1. **质疑你的需求**（Phase 0：5 个 Agent 真对抗辩论）
-2. **规划产品架构**（Phase 1：自动生成规格文档）
-3. **编写代码 + 三层质量把关**（Phase 2：测试 + 真实用户测试 + 独立裁决）
-4. **自动部署 + 文档**（Phase 3：ship → canary → release）
-5. **持续迭代**（自动回到 Phase 0，发现产品不足并改进）
+## What is this?
 
-核心目标：**「弥补产品不足、放大产品价值」**，而非仅仅修复 bug。
+**Unified Autopilot** is an **autonomous closed-loop development engine** built on the Claude Code Agent system. It goes far beyond a simple code generator:
 
-## 架构亮点
+### What makes it different?
 
-### TeamCreate 真对抗辩论（Phase 0）
+| Feature | Traditional AI Coding | Unified Autopilot |
+|---------|---------------------|-------------------|
+| **Product Innovation** | ❌ Direct coding | ✅ Phase 0: 5-Agent debate |
+| **Agent Communication** | ❌ Coordinator relay | ✅ Direct SendMessage |
+| **Quality Gates** | ❌ Single evaluator | ✅ 3-layer (test + user + verdict) |
+| **Business Viability** | ❌ None | ✅ Built-in assessment |
+| **Convergence Logic** | ❌ Infinite loop | ✅ Smart auto-stop |
+
+## Core Architecture
+
+### Phase 0: True Adversarial Debate (5 Agents)
 
 ```
-Step 1: 5 Agent 并行洞察（互相不可见）
-  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-  │ 需求重构      │  │ 颠覆式创新    │  │ 商业闭环      │  │ 质量风险      │
-  │ 洞察者        │  │ 官           │  │ 操盘手        │  │ 监督官        │
-  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
-  ┌──────────────┐
-  │ 规划收敛者    │  ← 第 5 个视角
-  └──────────────┘
+Step 1: Parallel Insights (agents can't see each other)
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ Insight       │  │ Innovation   │  │ Business     │  │ Quality       │
+│ Challenger   │  │ Officer      │  │ Operator    │  │ Supervisor  │
+└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
+      ┌─────────────┐
+      │ Planner      │  ← 5th perspective
+      └─────────────┘
 
-Step 2: TeamCreate + SendMessage 真对抗
-  Round 1: 每个 Agent 直接质疑其他 4 个（SendMessage 直接通信）
-  Round 2: 每个 Agent 直接回应质疑（可被说服后修正观点）
-  Round 3: planner 整合收敛 → 增强版产品需求
+Step 2: TeamCreate + SendMessage True Debate
+  Round 1: Each agent challenges the other 4 directly (no coordinator relay)
+  Round 2: Each agent responds to challenges (can be persuaded to change views)
+  Round 3: Planner integrates → Enhanced requirements
 ```
 
-这不是"coordinator 中转模拟对抗"——Agent 之间通过 `SendMessage` **直接通信**，信息无损，可以动态追问和被说服后修正观点。
+**Key innovation**: Agents communicate **directly** via `SendMessage`, not through a coordinator. This enables:
+- Zero information loss
+- Real-time follow-up questions
+- Dynamic opinion revision when persuaded
 
-### 三层质量把关（Phase 2）
+### Phase 2: Three-Layer Quality Gates
 
-| 层级 | 角色 | 职责 |
-|------|------|------|
-| 第一层 | qa-evaluator + vibcoding-checkpoint | E2E 测试 + 代码审查 + 安全检查 |
-| 第二层 | bb-browser（可选） | 真实用户场景测试 |
-| **第三层** | **独立质量监督官** | **一票否决权 + 收敛触发权** |
+| Layer | Role | Power |
+|-------|------|-------|
+| 1 | qa-evaluator + vibcoding-checkpoint | E2E tests + code review + security scan |
+| 2 | bb-browser (optional) | Real user scenario testing |
+| **3** | **Quality Supervisor** | **VETO power + convergence trigger** |
 
-### 智能收敛
+### Smart Convergence
 
-- 连续 2 轮无价值提升 → 自主挖掘模式（不停，找新方向）
-- 核心功能劣化 → 自动回滚
-- 用户说"停止" → 结束
+- 2 consecutive iterations without value gain → Auto-pivot to new directions
+- Core feature regression → Auto-rollback
+- User says "stop" → End loop
 
-## 快速开始
+## Quick Start
 
-### 前置要求
+### Prerequisites
 
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) 已安装并登录
-- Node.js & npm（可选，用于 bb-browser MCP）
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and logged in
+- Node.js & npm (optional, for bb-browser MCP)
 
-### 安装
+### Installation
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/StarlitSKy88/Snake-of-Mercury.git
 cd Snake-of-Mercury
 
-# 运行安装脚本
+# Run the installer
 bash install.sh
 
-# 验证安装
+# Verify installation
 bash verify.sh
 ```
 
-安装脚本会自动：
-1. 检查 Claude Code CLI
-2. 安装 5 个 Agent 文件到 `~/.claude/agents/`
-3. 安装 /harness skill 到 `~/.claude/skills/harness/`
-4. 可选：配置 bb-browser MCP（真实用户测试）
+The installer will:
+1. ✅ Check Claude Code CLI
+2. ✅ Install 5 Agent files to `~/.claude/agents/`
+3. ✅ Install `/harness` skill to `~/.claude/skills/harness/`
+4. ✅ Optionally configure bb-browser MCP (real user testing)
 
-### 使用
+### Basic Usage
 
 ```bash
-# 在 Claude Code 中输入
-/harness 开发一个个人博客，支持文章发布、评论、标签
+# In Claude Code, type:
+/harness Build a personal blog with posts, comments, and tags
 
-# 或者
-/harness 做一个命令行记账工具，支持分类统计和导出
-
-# 停止迭代
-直接说「停止」或「满意了」
+# Or describe naturally:
+/harness Create a CLI accounting tool with category tracking and export features
 ```
 
-## Agent 阵容
+### Advanced Usage
 
-| # | Agent | 职责 | 特殊权力 |
-|---|-------|------|----------|
-| 1 | insight-challenger | 质疑需求、挖痛点 | 3 个核心质疑 |
-| 2 | innovation-officer | 颠覆式创新 | 推翻现有框架 |
-| 3 | business-operator | 商业闭环评估 | 商业评分 |
-| 4 | quality-supervisor | 质量裁决 | **一票否决权** |
-| 5 | planner | 规划收敛 | 需求决策权 |
-| 6 | harness-coordinator | 总控调度 | 全局调度权 |
+```bash
+# With specific tech stack
+/harness Build a REST API with Express.js and PostgreSQL
 
-## 四维评分
+# With deployment target
+/harness Create a React app, Deploy to Vercel when done.
 
-| 维度 | 权重 | 重点 |
-|------|------|------|
-| 产品深度 | 35% | 功能完整性、惊喜体验 |
-| 用户体验 | 30% | 交互流畅、异常处理 |
-| 代码质量 | 20% | 可读性、测试覆盖 |
-| 安全合规 | 15% | 输入验证、权限控制 |
+# Stop iteration at any time
+/harness ... (then say "stop" or "good enough" when satisfied)
+```
 
-通过标准：总分 ≥ 8.0 且无单项 < 7.0
+### What Happens After You Type `/harness`?
 
-## 项目结构
+1. **Phase 0** (2-5 min): 5 agents debate your idea → Enhanced requirements
+2. **Phase 1** (1-2 min): Generate product spec + Sprint plan
+3. **Phase 2** (varies): Code implementation + 3-layer quality gates
+4. **Phase 3** (1-2 min): Auto-deploy + documentation
+5. **Loop**: Auto-returns to Phase 0 to find improvements
+
+## Agent Lineup
+
+| # | Agent | Role | Special Power |
+|---|-------|------|----------------|
+| 1 | insight-challenger | Question requirements, dig pain points | 3 core challenges |
+| 2 | innovation-officer | Disruptive innovation | Can overturn existing framework |
+| 3 | business-operator | Business viability assessment | Commercial scoring |
+| 4 | quality-supervisor | Quality verdict | **VETO power** |
+| 5 | planner | Integrate and converge | Requirements decision |
+| 6 | harness-coordinator | Orchestrate all phases | Global scheduling |
+
+## Four-Dimensional Scoring
+
+| Dimension | Weight | Focus |
+|-----------|--------|-------|
+| Product Depth | 35% | Feature completeness, delightful experiences |
+| User Experience | 30% | Smooth interactions, error handling |
+| Code Quality | 20% | Readability, test coverage |
+| Security | 15% | Input validation, permission control |
+
+**Pass criteria**: Total ≥ 8.0 AND no dimension < 7.0
+
+## Project Structure
 
 ```
 Snake-of-Mercury/
 ├── agents/
-│   ├── harness-coordinator.md       # 总控协调器
-│   ├── phase0-insight-challenger.md # 需求重构洞察者
-│   ├── phase0-innovation-officer.md  # 颠覆式创新官
-│   ├── phase0-business-operator.md   # 商业闭环操盘手
-│   └── phase0-quality-supervisor.md  # 独立质量监督官
+│   ├── harness-coordinator.md       # Orchestrator
+│   ├── phase0-insight-challenger.md # Requirement challenger
+│   ├── phase0-innovation-officer.md  # Innovation officer
+│   ├── phase0-business-operator.md  # Business operator
+│   └── phase0-quality-supervisor.md # Quality supervisor (VETO power)
 ├── skills/
 │   └── harness/
-│       └── SKILL.md                  # /harness 入口 skill
+│       └── SKILL.md                  # /harness entry point
 ├── docs/
-│   ├── ARCHITECTURE.md               # 架构文档
-│   └── LOTM-22-PATHWAYS.md           # 诡秘之主 22 条途径参考
-├── install.sh                        # 安装脚本
-├── verify.sh                         # 验证脚本
-├── uninstall.sh                      # 卸载脚本
-├── LICENSE                           # MIT 协议
-└── README.md                         # 本文件
+│   └── ARCHITECTURE.md               # Architecture documentation
+├── install.sh                        # Installation script
+├── verify.sh                         # Verification script
+├── uninstall.sh                      # Uninstallation script
+├── LICENSE                           # MIT License
+└── README.md                         # This file
 ```
 
-## 与其他 Harness 方案的区别
+## Comparison with Other Solutions
 
-| 维度 | 其他方案 | Snake of Mercury |
-|------|---------|-----------------|
-| 产品创新 | 无（直接规划） | ✅ Phase 0 五视角真对抗 |
-| Agent 通信 | coordinator 中转 | ✅ SendMessage 直接通信 |
-| 质量把关 | 单层 Evaluator | ✅ 三层（测试+用户+裁决） |
-| 商业视角 | 无 | ✅ 商业闭环操盘手 |
-| 收敛逻辑 | 无限循环或手动停 | ✅ 智能收敛 + 自主挖掘 |
+| Dimension | Anthropic Harness | Other AI Tools | Unified Autopilot |
+|-----------|-------------------|-----------------|-------------------|
+| Product Innovation | ❌ None | ❌ None | ✅ Phase 0 debate |
+| Agent Communication | ⚠️ Coordinator relay | ❌ None | ✅ Direct SendMessage |
+| Quality Gates | ⚠️ Single layer | ⚠️ Single layer | ✅ Three layers |
+| Business Viability | ❌ None | ❌ None | ✅ Built-in |
+| Convergence | ⚠️ Manual | ❌ None | ✅ Smart auto-stop |
 
-## 适用场景
+## Ideal Use Cases
 
-**推荐：**
-- 一人公司 / 独立开发者
-- 需要产品创新而不仅是写代码
-- 长周期项目无人值守运行
+### ✅ Recommended For
 
-**不推荐：**
-- 只需要简单 bug 修复
-- 需要人工审核每一步
-- 不信任 AI 自动执行
+- **Solo founders / Independent developers** — Maximize productivity
+- **Product innovation needed** — Not just coding, thinking
+- **Long-running projects** — Hands-off continuous improvement
+- **MVP to production** — Complete automation from idea to deployment
 
-## 命名由来
+### ❌ Not Recommended For
 
-> "Snake of Mercury"（水银之蛇）取自小说《诡秘之主》（Lord of the Mysteries）中的占卜家途径序列 1：**水银之蛇**（Snake of Mercury）。正如水银之蛇能操纵命运、洞察未来，这个引擎通过多 Agent 对抗来洞察产品的真正需求。
+- Simple bug fixes (use `/fix` directly)
+- Requires manual approval every step
+- No Claude API budget available
+- Don't trust autonomous AI execution
 
-后续项目将按诡秘之主的 22 条成神途径命名。
-
-## 许可证
+## License
 
 [MIT License](LICENSE)
 
 ---
 
-**Made with Claude Code**
+<p align="center">
+  <strong>Made with Claude Code</strong>
+</p>

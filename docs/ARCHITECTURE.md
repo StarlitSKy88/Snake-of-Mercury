@@ -1,8 +1,8 @@
-# Snake of Mercury (水银之蛇) — 架构文档
+# Unified Autopilot — 架构文档
 
 > **版本**: v2.4 (TeamCreate 真对抗架构)
 > **生成时间**: 2026-04-05
-> **作者**: 浮浮酱 + Claude
+> **作者**: Ola
 
 ---
 
