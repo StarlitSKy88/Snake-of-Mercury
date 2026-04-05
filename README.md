@@ -75,53 +75,231 @@ Step 2: TeamCreate + SendMessage True Debate
 ### Installation
 
 ```bash
-# Clone the repository
+# Step 1: Clone the repository
 git clone https://github.com/StarlitSKy88/Snake-of-Mercury.git
 cd Snake-of-Mercury
 
-# Run the installer
+# Step 2: Run the installer
 bash install.sh
 
-# Verify installation
+# Step 3: Verify installation
 bash verify.sh
 ```
 
 The installer will:
-1. ✅ Check Claude Code CLI
+1. ✅ Check Claude Code CLI availability
 2. ✅ Install 5 Agent files to `~/.claude/agents/`
 3. ✅ Install `/harness` skill to `~/.claude/skills/harness/`
-4. ✅ Optionally configure bb-browser MCP (real user testing)
+4. ✅ Optionally configure bb-browser MCP (for real user testing)
 
-### Basic Usage
+---
 
-```bash
-# In Claude Code, type:
-/harness Build a personal blog with posts, comments, and tags
+## Usage Guide
 
-# Or describe naturally:
-/harness Create a CLI accounting tool with category tracking and export features
+### Command Format
+
+```
+/harness [your product idea in 1-4 sentences]
 ```
 
-### Advanced Usage
+**Tips for better results:**
+- ✅ Be specific about features you want
+- ✅ Mention target platform (web, CLI, mobile)
+- ✅ Specify tech stack if you have preferences
+- ❌ Avoid vague descriptions like "make something cool"
+
+### Basic Examples
+
+```bash
+# Simple web app
+/harness Build a personal blog with posts, comments, and tags
+
+# CLI tool
+/harness Create a command-line todo app with priorities and due dates
+
+# API service
+/harness Build a URL shortener API with analytics and rate limiting
+```
+
+### Advanced Examples
 
 ```bash
 # With specific tech stack
-/harness Build a REST API with Express.js and PostgreSQL
+/harness Build a REST API with Express.js and PostgreSQL for task management
 
 # With deployment target
-/harness Create a React app, Deploy to Vercel when done.
+/harness Create a React dashboard for sales analytics, deploy to Vercel
 
-# Stop iteration at any time
-/harness ... (then say "stop" or "good enough" when satisfied)
+# Full-stack application
+/harness Build a full-stack e-commerce platform with Next.js, Stripe payments, and admin panel
+
+# With specific features
+/harness Create a markdown note-taking app with local storage, search, and export to PDF
 ```
 
-### What Happens After You Type `/harness`?
+### Controlling the Loop
 
-1. **Phase 0** (2-5 min): 5 agents debate your idea → Enhanced requirements
-2. **Phase 1** (1-2 min): Generate product spec + Sprint plan
-3. **Phase 2** (varies): Code implementation + 3-layer quality gates
-4. **Phase 3** (1-2 min): Auto-deploy + documentation
-5. **Loop**: Auto-returns to Phase 0 to find improvements
+```bash
+# Start the autonomous loop
+/harness Build a habit tracker app
+
+# At any point, you can say:
+"stop"           # End the loop immediately
+"good enough"    # Accept current state and stop
+"continue"       # Force another iteration
+"show progress"  # See what's been done so far
+```
+
+---
+
+## Real-World Case Demonstrations
+
+### Case 1: CLI Accounting Tool
+
+**Input:**
+```
+/harness 做一个命令行记账工具，支持分类统计和导出CSV
+```
+
+**Phase 0 Output (Enhanced Requirements):**
+- Core: Add/edit/delete transactions with categories
+- Analytics: Monthly/weekly summaries with charts
+- Export: CSV and JSON formats
+- Innovation: Recurring transaction templates
+- Quality: Input validation, data backup
+
+**Final Deliverable:**
+- Working CLI tool (`accounting-cli`)
+- Commands: `add`, `list`, `stats`, `export`
+- Tests with 85% coverage
+- README with usage examples
+
+---
+
+### Case 2: REST API with Authentication
+
+**Input:**
+```
+/harness Build a REST API with Express.js and PostgreSQL, include user auth and CRUD for posts
+```
+
+**Phase 0 Output:**
+- Auth: JWT-based authentication with refresh tokens
+- Posts: CRUD with pagination and search
+- Security: Rate limiting, input validation, SQL injection prevention
+- Innovation: API versioning, webhook support
+- Quality: Integration tests, API documentation
+
+**Final Deliverable:**
+- Express.js server with PostgreSQL
+- `/auth/*` endpoints (register, login, refresh)
+- `/posts/*` endpoints (CRUD + search)
+- Postman collection
+- Docker Compose for local development
+
+---
+
+### Case 3: React Dashboard
+
+**Input:**
+```
+/harness Create a React dashboard for tracking daily habits, use charts for visualization
+```
+
+**Phase 0 Output:**
+- Features: Habit CRUD, streak tracking, weekly/monthly views
+- Visualization: Charts for completion rates
+- UX: Dark mode, mobile responsive, notifications
+- Innovation: Habit templates, social sharing
+- Quality: Component tests, accessibility audit
+
+**Final Deliverable:**
+- React app with TypeScript
+- Chart.js visualizations
+- Local storage persistence
+- PWA support for offline use
+
+---
+
+## What Happens After `/harness`?
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Your Input: "Build a personal blog with posts and comments"    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 0: Product Innovation (2-5 min)                          │
+│  ────────────────────────────────────────────────────────────── │
+│  5 agents debate your idea:                                     │
+│  • Insight Challenger: "Who is the target audience?"            │
+│  • Innovation Officer: "Add AI-powered writing suggestions"     │
+│  • Business Operator: "Consider monetization via subscriptions" │
+│  • Quality Supervisor: "Need content moderation for comments"   │
+│  • Planner: Integrates all perspectives → Enhanced requirements │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 1: Planning (1-2 min)                                    │
+│  ────────────────────────────────────────────────────────────── │
+│  • Generate product specification                               │
+│  • Create sprint plan with tasks                                │
+│  • Output: ./harness-spec.md                                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 2: Development (varies by project size)                  │
+│  ────────────────────────────────────────────────────────────── │
+│  • Code implementation                                          │
+│  • 3-Layer Quality Gates:                                       │
+│    Layer 1: E2E tests + code review + security scan             │
+│    Layer 2: Real user testing (optional)                        │
+│    Layer 3: Quality supervisor (veto power)                     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 3: Delivery (1-2 min)                                    │
+│  ────────────────────────────────────────────────────────────── │
+│  • Auto-deploy (if configured)                                  │
+│  • Update documentation                                         │
+│  • Generate changelog                                           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Loop Decision                                                   │
+│  ────────────────────────────────────────────────────────────── │
+│  • Value gain detected? → Return to Phase 0 for improvements    │
+│  • 2 consecutive iterations without gain? → Auto-pivot          │
+│  • User said "stop"? → End loop                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `/harness` not recognized | Run `bash install.sh` again, verify with `bash verify.sh` |
+| Agents not debating | Check `~/.claude/agents/` has 5 `.md` files |
+| Phase 0 takes too long | Normal for complex requirements; simplify your input |
+| Quality gate failures | Check the generated test reports in project directory |
+| Infinite loop | Say "stop" to end; check convergence settings |
+
+---
+
+## Tips for Best Results
+
+1. **Start simple** — Begin with 1-2 sentence descriptions
+2. **Be specific** — "Build a blog" < "Build a tech blog with markdown support and RSS feed"
+3. **Trust the process** — Let Phase 0 run even if it seems verbose
+4. **Iterate** — Say "continue" if you want more features added
+5. **Review outputs** — Check `./harness-spec.md` for the enhanced requirements
 
 ## Agent Lineup
 
