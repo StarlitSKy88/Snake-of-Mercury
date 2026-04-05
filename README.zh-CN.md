@@ -1,4 +1,4 @@
-# Unified Autopilot
+# Snake of Mercury (水银之蛇)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-1.000-blue)](https://docs.anthropic.com/en/docs/claude-code)
@@ -12,11 +12,11 @@
 
 ## 这是什么？
 
-**Unified Autopilot** 是基于 Claude Code Agent 系统的**全自动化闭环开发引擎**。它远不止是一个代码生成器：
+**Snake of Mercury (水银之蛇)** 是基于 Claude Code Agent 系统的**全自动化闭环开发引擎**。它远不止是一个代码生成器：
 
 ### 它有什么不同？
 
-| 特性 | 传统 AI 编程 | Unified Autopilot |
+| 特性 | 传统 AI 编程 | Snake of Mercury (水银之蛇) |
 |------|-------------|-----------------|
 | **产品创新** | ❌ 直接写代码 | ✅ Phase 0：5 Agent 真对抗辩论 |
 | **Agent 通信** | ❌ 协调器中转 | ✅ SendMessage 直接通信 |
@@ -167,7 +167,7 @@ Snake-of-Mercury/
 
 ## 与其他方案的对比
 
-| 维度 | Anthropic Harness | 其他 AI 工具 | Unified Autopilot |
+| 维度 | Anthropic Harness | 其他 AI 工具 | Snake of Mercury (水银之蛇) |
 |------|-----------------|-------------|-----------------|
 | 产品创新 | ❌ 无 | ❌ 无 | ✅ Phase 0 五视角辩论 |
 | Agent 通信 | ⚠️ 协调器中转 | ❌ 无 | ✅ SendMessage 直接通信 |

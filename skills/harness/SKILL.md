@@ -1,9 +1,9 @@
 ---
 name: harness
-description: Unified Autopilot 全自动闭环开发引擎。当用户输入 /harness 命令或描述产品开发需求时，自动调用 harness-coordinator，通过 Phase 0 产品创新（5 Agent 并行 + 真对抗）→ Phase 1 规划 → Phase 2 开发（三层质量把关）→ Phase 3 交付 的全自动化闭环流程，实现无人值守的持续迭代。
+description: Snake of Mercury (水银之蛇) 全自动闭环开发引擎。当用户输入 /harness 命令或描述产品开发需求时，自动调用 harness-coordinator，通过 Phase 0 产品创新（5 Agent 并行 + 真对抗）→ Phase 1 规划 → Phase 2 开发（三层质量把关）→ Phase 3 交付 的全自动化闭环流程，实现无人值守的持续迭代。
 ---
 
-# Unified Autopilot 全自动闭环开发引擎
+# Snake of Mercury (水银之蛇) 全自动闭环开发引擎
 
 ## 核心规则（必须 100% 严格执行）
 
@@ -14,7 +14,7 @@ description: Unified Autopilot 全自动闭环开发引擎。当用户输入 /ha
 ```python
 Agent(
     subagent_type="harness-coordinator",
-    prompt="用户需求：{requirement}\n\n请启动 Unified Autopilot 全自动化流程，从 Phase 0 产品创新开始，经过规划、开发、交付的完整闭环迭代。"
+    prompt="用户需求：{requirement}\n\n请启动 Snake of Mercury (水银之蛇) 全自动化流程，从 Phase 0 产品创新开始，经过规划、开发、交付的完整闭环迭代。"
 )
 ```
 
@@ -60,12 +60,12 @@ Agent(
 
 ### 5. 输出规范
 
-- 启动时：输出 🚀 Unified Autopilot 全自动化流程启动，包含需求、工作目录、迭代模式
+- 启动时：输出 🚀 Snake of Mercury (水银之蛇) 全自动化流程启动，包含需求、工作目录、迭代模式
 - Phase 0 完成时：输出 ✅ Phase 0 产品创新阶段完成，包含核心洞察和创新方向
 - 每个 Sprint 完成时：输出 ✅ Sprint {N} 完成，包含四维评分
 - Phase 3 完成时：输出 ✅ Phase 3 交付阶段完成
 - 收敛检测：输出 🔍 收敛检测结果
-- 项目完成时：输出 🎉 Unified Autopilot 全流程完成！
+- 项目完成时：输出 🎉 Snake of Mercury (水银之蛇) 全流程完成！
 
 ## 执行流程（harness-coordinator 自动完成）
 

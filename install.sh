@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# Snake of Mercury — Unified Autopilot Installer
+# Snake of Mercury — Snake of Mercury (水银之蛇) Installer
 # 安装 Claude Code 全自动闭环开发引擎
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
@@ -18,7 +18,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║       🐍 Snake of Mercury — Unified Autopilot Installer        ║"
+echo "║       🐍 Snake of Mercury — Snake of Mercury (水银之蛇) Installer        ║"
 echo "║       Version ${VERSION}                                            ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
@@ -138,7 +138,7 @@ echo "║                  ✅ Installation Complete!                      ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║                                                              ║"
 echo "║  Agents:  $AGENT_COUNT installed                                    ║"
-echo "║  Skill:   /harness (Unified Autopilot entry point)             ║"
+echo "║  Skill:   /harness (Snake of Mercury (水银之蛇) entry point)             ║"
 echo "║  Usage:   /harness [your product idea in 1-4 sentences]         ║"
 echo "║                                                              ║"
 echo "║  Run 'bash verify.sh' to verify installation.                   ║"

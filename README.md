@@ -1,4 +1,4 @@
-# Unified Autopilot
+# Snake of Mercury (水银之蛇)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-1.000-blue)](https://docs.anthropic.com/en/docs/claude-code)
@@ -12,11 +12,11 @@
 
 ## What is this?
 
-**Unified Autopilot** is an **autonomous closed-loop development engine** built on the Claude Code Agent system. It goes far beyond a simple code generator:
+**Snake of Mercury (水银之蛇)** is an **autonomous closed-loop development engine** built on the Claude Code Agent system. It goes far beyond a simple code generator:
 
 ### What makes it different?
 
-| Feature | Traditional AI Coding | Unified Autopilot |
+| Feature | Traditional AI Coding | Snake of Mercury (水银之蛇) |
 |---------|---------------------|-------------------|
 | **Product Innovation** | ❌ Direct coding | ✅ Phase 0: 5-Agent debate |
 | **Agent Communication** | ❌ Coordinator relay | ✅ Direct SendMessage |
@@ -167,7 +167,7 @@ Snake-of-Mercury/
 
 ## Comparison with Other Solutions
 
-| Dimension | Anthropic Harness | Other AI Tools | Unified Autopilot |
+| Dimension | Anthropic Harness | Other AI Tools | Snake of Mercury (水银之蛇) |
 |-----------|-------------------|-----------------|-------------------|
 | Product Innovation | ❌ None | ❌ None | ✅ Phase 0 debate |
 | Agent Communication | ⚠️ Coordinator relay | ❌ None | ✅ Direct SendMessage |
