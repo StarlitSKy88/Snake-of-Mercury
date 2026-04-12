@@ -1,0 +1,16 @@
+{
+  "contextSnapshot": "build a simple counter app",
+  "problemStatement": "build a simple counter app",
+  "jtbd": "待定义",
+  "currentAlternatives": "待分析",
+  "evidenceAndAssumptions": [],
+  "successCriteria": [
+    "功能完整",
+    "可正常运行"
+  ],
+  "scopeBoundaries": {
+    "inScope": [],
+    "outOfScope": []
+  },
+  "prototypePlan": "待规划"
+}

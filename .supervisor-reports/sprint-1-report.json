@@ -1,0 +1,16 @@
+{
+  "verdict": "REJECTED",
+  "totalScore": 0,
+  "dimensionScores": {
+    "productDepth": 0,
+    "userExperience": 0,
+    "codeQuality": 0,
+    "security": 0
+  },
+  "issues": [
+    "审查执行失败: Command timed out after 600000ms"
+  ],
+  "evaluatorBiasWarnings": [
+    "审查过程出错"
+  ]
+}

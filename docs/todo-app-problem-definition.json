@@ -1,0 +1,219 @@
+{
+  "context_snapshot": {
+    "timestamp": "2026-04-10T23:50:00+08:00",
+    "project_name": "Snake-of-Mercury",
+    "existing_artifact": "todo.html - 单文件 Todo 应用（已存在）",
+    "artifact_status": {
+      "ui": "深色主题，响应式移动端适配",
+      "storage": "localStorage 持久化",
+      "interactions": "键盘导航（↑↓切换、Space完成、Delete删除、Enter添加、Esc取消）",
+      "features": "添加、完成切换、删除、任务统计、空状态提示",
+      "tech_stack": "纯 HTML + CSS + Vanilla JS，无外部依赖"
+    },
+    "user_request": "写一个简单的 todo 应用",
+    "note": "需求宽泛，可能是：(1)从零开发全新todo (2)改进现有todo.html (3)仅需问题定义文档而非实际代码"
+  },
+
+  "problem_statement": {
+    "core_problem": "个人任务管理缺乏简单、直观、无门槛的可视化工具，导致待办事项容易遗忘、优先级混乱、进度不可追踪。",
+    "why_now": [
+      "现代人日均处理 40-100 个碎片任务，信息过载严重",
+      "现有工具（邮件/微信/笔记）不具备任务专用交互范式",
+      "复杂 App（如 Notion/Asana）学习成本高，违反'极简优先'原则",
+      "用户需要一个 3 秒内可记录、1 秒可查看的零摩擦工具"
+    ],
+    "target_moment": "昴君在深夜加班或日常工作时，想要快速记录一闪而过的想法/任务，而不是被复杂的 App 打断思路。"
+  },
+
+  "jtbd": {
+    "jobs": [
+      {
+        "id": "JTBD-01",
+        "action": "快速记录任务",
+        "trigger": "脑中突然想起需要做的事",
+        "goal": "输入 < 3 秒内完成保存，不打断当前工作流",
+        "priority": "P0"
+      },
+      {
+        "id": "JTBD-02",
+        "action": "标记任务完成",
+        "trigger": "完成任务后需要视觉反馈",
+        "goal": "一键标记，获得成就感，减少认知负担",
+        "priority": "P0"
+      },
+      {
+        "id": "JTBD-03",
+        "action": "浏览/回顾任务列表",
+        "trigger": "开始新一天或切换上下文",
+        "goal": "快速了解'今天还有什么要做'",
+        "priority": "P1"
+      },
+      {
+        "id": "JTBD-04",
+        "action": "删除/整理任务",
+        "trigger": "任务变得无关或重复",
+        "goal": "保持列表干净，减少噪音",
+        "priority": "P1"
+      },
+      {
+        "id": "JTBD-05",
+        "action": "跨设备同步（潜在）",
+        "trigger": "在手机/电脑切换使用",
+        "goal": "任务随访问设备可访问",
+        "priority": "P2"
+      }
+    ],
+    "target_persona": {
+      "name": "昴君（OPC模式）",
+      "profile": "一人公司创始人，需要快速记录灵感、任务、待办事项",
+      "pain_points": ["任务散落在微信/邮件/笔记中", "没有单一的信任系统", "切换上下文成本高"],
+      "tech_literacy": "中等偏上，偏好轻量工具而非重型 App"
+    }
+  },
+
+  "current_alternatives_and_gaps": {
+    "alternatives": [
+      {"name": "微信/飞书消息", "pros": "随时可记", "cons": "不可管理/标记完成，沦为'稍后阅读'黑洞"},
+      {"name": "Notes/备忘录", "pros": "跨设备同步", "cons": "无任务交互（勾选/完成/分类）"},
+      {"name": "Notion", "pros": "功能强大", "cons": "3秒内无法开始记录，学习成本高"},
+      {"name": "Things 3/OmniFocus", "pros": "专业任务管理", "cons": "付费、平台锁定（Apple生态）"},
+      {"name": "现有 todo.html", "pros": "零依赖、单文件、秒开", "cons": "无跨设备同步、不支持分类/优先级"}
+    ],
+    "gaps": [
+      "缺少：任务优先级/分类维度",
+      "缺少：截止日期提醒",
+      "缺少：跨设备同步（Web可用）",
+      "缺少：重复任务/周期任务",
+      "缺少：批量操作（全选/清除已完成）"
+    ],
+    "gap_prioritization": {
+      "P0_gaps": ["跨设备同步（Web化）", "任务分类/标签", "优先级排序"],
+      "P1_gaps": ["截止日期", "批量操作"],
+      "P2_gaps": ["重复任务", "提醒通知", "数据导出"]
+    }
+  },
+
+  "evidence_and_assumptions_log": {
+    "evidence": [
+      {"source": "现有 todo.html 使用 localStorage", "insight": "数据完全在客户端，迁移成本低"},
+      {"source": "用户偏好深夜加班场景", "insight": "深色主题是正确选择（已实现）"},
+      {"source": "键盘快捷键设计", "insight": "用户可能同时使用鼠标和键盘，需要双重支持"}
+    ],
+    "assumptions": [
+      {"id": "A-01", "assumption": "用户主要在桌面端使用", "confidence": "高（现有 todo.html 面向桌面优化）"},
+      {"id": "A-02", "assumption": "单设备使用场景 > 多设备场景", "confidence": "中（无同步需求明确提出）"},
+      {"id": "A-03", "assumption": "任务量在 20-100 条时体验不变差", "confidence": "中（无分页/虚拟滚动）"},
+      {"id": "A-04", "assumption": "localStorage 容量（~5MB）足够存储多年任务", "confidence": "高"}
+    ],
+    "risks": [
+      "localStorage 在隐私模式下不可用",
+      "换设备后数据丢失风险",
+      "大量任务时无性能优化（虚拟列表）"
+    ]
+  },
+
+  "success_criteria_and_guardrails": {
+    "success_metrics": [
+      {"metric": "任务记录时间", "target": "< 3 秒（输入 → 保存）", "measurement": "人工计时"},
+      {"metric": "关键操作可访问性", "target": "添加/完成/删除 可键盘+鼠标双操作", "measurement": "功能验收"},
+      {"metric": "移动端可用性", "target": "iOS Safari / Android Chrome 可正常添加", "measurement": "手动测试"},
+      {"metric": "数据持久化", "target": "刷新/重启后数据不丢失", "measurement": "localStorage 验证"},
+      {"metric": "首屏加载", "target": < 500ms（单 HTML 文件，无外部依赖）", "measurement": "DevTools"}
+    ],
+    "guardrails": {
+      "in_scope_constraints": [
+        "必须保持单文件 HTML（零安装、零依赖）",
+        "必须支持 localStorage 本地持久化",
+        "必须保持深色主题（眼睛友好）",
+        "必须支持键盘导航（效率用户）"
+      ],
+      "out_of_scope_constraints": [
+        "不支持后端服务器部署（除非用户明确要求）",
+        "不支持用户注册/账号系统",
+        "不支持复杂任务管理（子任务/依赖关系）",
+        "不引入任何外部 CDN 依赖（纯自包含）"
+      ]
+    },
+    "quality_bar": "Lighthouse Performance Score ≥ 90"
+  },
+
+  "scope_boundaries": {
+    "in_scope": [
+      "添加任务（输入框 + Enter）",
+      "完成任务切换（点击/键盘 Space）",
+      "删除任务（点击 × / 键盘 Delete）",
+      "任务列表渲染（支持 100+ 条）",
+      "localStorage 持久化",
+      "空状态提示",
+      "任务统计（总数/已完成/剩余）",
+      "键盘导航（↑↓ / Enter / Space / Delete / Esc）",
+      "深色主题 UI",
+      "移动端响应式布局",
+      "输入防 XSS（escapeHtml）"
+    ],
+    "out_of_scope": [
+      "用户认证/账号系统",
+      "后端 API / 数据库",
+      "任务分类/标签/文件夹",
+      "任务优先级（P0/P1/P2）",
+      "截止日期/提醒功能",
+      "任务搜索/过滤",
+      "批量操作（全选/清除已完成）",
+      "数据导出（JSON/CSV）",
+      "跨设备同步",
+      "重复任务/周期任务",
+      "深色/浅色主题切换",
+      "多语言支持",
+      "拖拽排序",
+      "任务详情/备注"
+    ],
+    "phase_2_candidates": [
+      "任务分类/标签（v2）",
+      "截止日期 + 排序（v2）",
+      "数据导出（v2）",
+      "批量清除已完成（v2）"
+    ]
+  },
+
+  "prototype_and_learning_plan": {
+    "current_prototype": {
+      "name": "todo.html",
+      "type": "Single HTML File",
+      "file_path": "/Users/opc-1/Downloads/O/Snake-of-Mercury/todo.html",
+      "line_of_code": "~370 行",
+      "status": "功能完整度 ~70%（核心 CRUD 具备，高级功能缺失）",
+      "tech_stack": "HTML5 + CSS3 + Vanilla JS（ES6+）",
+      "no_build_required": true,
+      "可直接打开": true
+    },
+    "validation_experiments": [
+      {
+        "experiment": "用户是否真的需要键盘导航？",
+        "method": "在 todo.html 中添加使用数据埋点（可选）",
+        "success_criteria": "7天内键盘使用率 > 30% 则保留，< 10% 则考虑简化"
+      },
+      {
+        "experiment": "现有 UI 是否满足移动端需求？",
+        "method": "在真实手机上测试添加/完成/删除全流程",
+        "success_criteria": "每步操作 < 3 秒，无布局错位"
+      },
+      {
+        "experiment": "localStorage 容量是否够用？",
+        "method": "写入 1000 条模拟任务测试性能",
+        "success_criteria": "渲染时间 < 100ms，无卡顿"
+      }
+    ],
+    "iteration_plan": [
+      {"phase": "当前", "deliverable": "todo.html MVP", "status": "已完成基础功能"},
+      {"phase": "P0 迭代", "deliverable": "确认键盘导航使用率，决定去留"},
+      {"phase": "P1 迭代", "deliverable": "添加任务分类/标签（如果用户提出）"},
+      {"phase": "P2 迭代", "deliverable": "跨设备同步方案调研（如果用户提出）"}
+    ],
+    "learning_questions": [
+      "用户更在意'功能简单'还是'功能全面'？",
+      "用户是否愿意为同步功能付费？",
+      "键盘导航的真实使用率是多少？",
+      "用户是否需要任务重复/周期功能？"
+    ]
+  }
+}

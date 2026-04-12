@@ -1,0 +1,12 @@
+{
+  "healthy": true,
+  "metrics": {
+    "latency": 0,
+    "errorRate": 0,
+    "uptime": 100
+  },
+  "warnings": [
+    "本地部署，跳过外部监控"
+  ],
+  "timestamp": "2026-04-12T08:42:14.306Z"
+}

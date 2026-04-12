@@ -1,0 +1,187 @@
+{
+  "context_snapshot": {
+    "project_name": "Snake-of-Mercury Todo App",
+    "timestamp": "2026-04-10",
+    "current_state": "Existing TypeScript project with vitest, tsx, and basic tooling. No frontend framework.",
+    "user_profile": "一人公司 (OPC) 创始人，需要快速记录和追踪任务",
+    "constraints": [
+      "技术栈: TypeScript/JavaScript (不使用其他语言)",
+      "极简优先: 单人可独立完成",
+      "可直接运行: 无需额外依赖安装",
+      "适配本地运行或 Vercel 部署"
+    ]
+  },
+
+  "problem_statement": {
+    "core_problem": "需要一个简单、快速、无依赖的 Todo 应用来追踪日常任务",
+    "why_now": "现有 Todo 应用过于复杂，功能堆砌导致效率降低。对于 OPC 来说，时间就是一切，需要即开即用的任务管理工具。",
+    "pain_points": [
+      "复杂 App（如 Notion、Todoist）加载慢，功能冗余",
+      "简单便签无法持久化存储",
+      "无快速添加/完成/删除的键盘快捷键",
+      "无法在多设备间同步（单人不敏感）"
+    ]
+  },
+
+  "jtbd": {
+    "jobs_to_be_done": [
+      {
+        "id": "add_todo",
+        "description": "快速添加新任务",
+        "trigger": "想到需要完成的事情时",
+        "acceptance": "输入文字 → 回车 → 任务出现"
+      },
+      {
+        "id": "complete_todo",
+        "description": "标记任务为已完成",
+        "trigger": "完成任务时",
+        "acceptance": "点击/空格 → 任务划线消失/变灰"
+      },
+      {
+        "id": "delete_todo",
+        "description": "删除不需要的任务",
+        "trigger": "任务不再需要时",
+        "acceptance": "点击删除按钮 → 任务消失"
+      },
+      {
+        "id": "list_todos",
+        "description": "查看所有任务",
+        "trigger": "开始工作时",
+        "acceptance": "打开页面 → 看到所有待办和已完成任务"
+      }
+    ],
+    "target_persona": "一人公司创始人 / 自由职业者 / 需要快速任务捕捉的知识工作者"
+  },
+
+  "current_alternatives_gaps": {
+    "alternatives": [
+      {
+        "name": "手机备忘录",
+        "pros": "随时可用",
+        "cons": "无法标记完成，无快捷键，数据不持久"
+      },
+      {
+        "name": "Notion",
+        "pros": "功能强大，可协作",
+        "cons": "加载慢，需要注册，功能过度复杂"
+      },
+      {
+        "name": "Todoist",
+        "pros": "专为任务管理设计",
+        "cons": "有学习曲线，需要账号，国内访问慢"
+      },
+      {
+        "name": "纸笔",
+        "pros": "零技术门槛",
+        "cons": "无法搜索，无法重编辑，无法持久化"
+      }
+    ],
+    "gaps": [
+      "缺乏即开即用、无需登录的轻量工具",
+      "缺乏本地存储 + 简单 UI 的组合",
+      "缺乏键盘驱动的高效操作"
+    ]
+  },
+
+  "evidence_assumptions_log": {
+    "evidence": [
+      "大量用户从复杂 App 回退到简单工具 (Obsidian 社区的兴起)",
+      "单页 HTML Todo 应用在 GitHub 有上百万 stars",
+      "番茄工作法等轻量方法论的流行"
+    ],
+    "assumptions": [
+      {
+        "assumption": "用户需要一个完全离线的 Todo 工具",
+        "confidence": "high",
+        "validation": "MVP 发布后观察使用频率"
+      },
+      {
+        "assumption": "键盘快捷键会提高效率",
+        "confidence": "medium",
+        "validation": "可通过使用数据或用户反馈验证"
+      },
+      {
+        "assumption": "单文件部署足够满足需求",
+        "confidence": "high",
+        "validation": "无服务器端逻辑，纯前端即可"
+      }
+    ]
+  },
+
+  "success_criteria_guardrails": {
+    "success_criteria": {
+      "functional": [
+        "可添加任务 (Enter 提交)",
+        "可标记完成 (点击/快捷键)",
+        "可删除任务",
+        "任务持久化到 localStorage",
+        "页面刷新后数据保留"
+      ],
+      "non_functional": [
+        "首屏加载 < 1秒",
+        "无外部依赖，单 HTML 文件",
+        "支持 Chrome/Firefox/Safari 最新两版"
+      ]
+    },
+    "guardrails": {
+      "must_not": [
+        "要求用户注册/登录",
+        "发送数据到任何服务器",
+        "包含任何分析/追踪脚本",
+        "超过 500 行代码"
+      ],
+      "must_have": [
+        "本地存储持久化",
+        "基本的视觉反馈 (完成态)",
+        "至少一个键盘快捷键"
+      ]
+    }
+  },
+
+  "scope_boundaries": {
+    "in_scope": [
+      "添加 Todo",
+      "完成 Todo (toggle)",
+      "删除 Todo",
+      "localStorage 持久化",
+      "最基本的样式 (可辨识的已完成/未完成状态)",
+      "键盘快捷键 (Enter 添加, 空格完成, Delete 删除)"
+    ],
+    "out_of_scope": [
+      "多用户/协作功能",
+      "云端同步",
+      "标签/分类/文件夹",
+      "优先级/截止日期",
+      "搜索/筛选",
+      "导出功能",
+      "PWA/离线通知",
+      "主题定制",
+      "多语言"
+    ],
+    "nice_to_have_future": [
+      "番茄钟计时器",
+      "数据导出 JSON",
+      "快捷键提示面板 (?)"
+    ]
+  },
+
+  "prototype_learning_plan": {
+    "phase_1_mvp": {
+      "deliverable": "单个 HTML 文件，内嵌 CSS + JS",
+      "success_metric": "核心 CRUD 操作流畅，无 console error",
+      "duration": "1-2 小时",
+      "validation": "手动测试: 添加→完成→删除→刷新"
+    },
+    "phase_2_if_needed": {
+      "deliverable": "键盘快捷键完善 + 视觉优化",
+      "success_metric": "用户反馈效率提升",
+      "duration": "1 小时",
+      "validation": "用户访谈"
+    },
+    "learning_questions": [
+      "用户真的只用它跟踪 5-10 个任务吗?",
+      "localStorage 够用还是会丢失数据?",
+      "用户会使用键盘快捷键还是只用鼠标?"
+    ]
+  }
+}
