@@ -428,6 +428,7 @@ async function executePhase2(
   const engine = (process.env.HARNESS_ENGINE || 'claude') as AgentEngine;
   const spec = state.phase1Output.spec;
   const sprintResults: SupervisorReport[] = [];
+  let lastIssues: string[] = [];  // 追踪最近一次 REJECTED 的具体问题
   const MAX_SPRINT_RETRIES = 3;
 
   // 初始化 Ralph Wiggum Loop（任务级循环）
@@ -467,8 +468,12 @@ async function executePhase2(
         projectId,
       });
 
+      // 重试时优先使用结构化 issues，降级到 lastError 字符串
+      const retryIssues = lastIssues && lastIssues.length > 0
+        ? lastIssues
+        : (lastError ? [lastError] : []);
       const genResult = await executeGenerator(
-        { sprint, spec, projectDir, previousIssues: lastError ? [lastError] : [], sprintContract: proposedContract },
+        { sprint, spec, projectDir, previousIssues: retryIssues, sprintContract: proposedContract },
         engine
       );
 
@@ -499,6 +504,8 @@ async function executePhase2(
         eventBus.emit('sprint:rollback', 'evaluator', { sprintNumber: sprint.sprintNumber, projectId });
         return { passed: false, error: 'Evaluator ROLLBACK' };
       } else {
+        // 传递 issues 数组用于 Generator 精准修复
+        lastIssues = report.issues;
         return { passed: false, error: report.issues.join('; '), report };
       }
     },
