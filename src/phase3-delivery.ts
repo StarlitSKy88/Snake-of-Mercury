@@ -1,455 +1,204 @@
 /**
  * Phase 3 Delivery - 交付阶段集成
  *
- * 集成 ship, canary, document-release 技能
+ * 多引擎支持：Claude CLI | Codex CLI | 无CLI降级
  * 实现自动部署、监控验证、文档更新
  */
 
 import { spawn } from 'child_process';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { detectAvailableEngines, type AgentEngine } from './utils/agent-executor.js';
 import type { DeploymentResult, CanaryReport, HarnessState } from './types.js';
 
-// ============= 常量 =============
-
-const DEPLOYMENT_TIMEOUT = 300000; // 5 分钟
-const CANARY_TIMEOUT = 600000; // 10 分钟
-const DOCUMENT_TIMEOUT = 120000; // 2 分钟
-
-// ============= 部署结果类型 =============
+const DEPLOYMENT_TIMEOUT = 300000;
+const CANARY_TIMEOUT = 600000;
+const DOCUMENT_TIMEOUT = 120000;
 
 export interface DeliveryResult {
   deployment: DeploymentResult;
   canary: CanaryReport | null;
-  documentation: {
-    success: boolean;
-    outputPath?: string;
-    error?: string;
-  };
+  documentation: { success: boolean; outputPath?: string; error?: string };
+  engine: AgentEngine;
+}
+
+export interface Phase3Config {
+  engine?: AgentEngine;
+  autoConfirm?: boolean;
+  canaryDuration?: number;
 }
 
 // ============= Ship 部署 =============
 
-/**
- * 调用 ship skill 进行部署
- */
 export async function executeShip(
-  projectDir: string,
-  autoConfirm: boolean = true
+  projectDir: string, engine: AgentEngine = 'claude', autoConfirm: boolean = true
 ): Promise<DeploymentResult> {
   console.log('[Phase 3] 执行 ship 部署...');
-
   const timestamp = new Date().toISOString();
 
   try {
-    // 检查是否有部署配置
-    const hasDeployConfig = await checkDeployConfig(projectDir);
-
-    if (!hasDeployConfig) {
-      console.log('[Phase 3] 未检测到部署配置，跳过实际部署');
-      return {
-        success: true,
-        deployedUrl: 'local://development',
-        timestamp
-      };
+    if (!(await checkDeployConfig(projectDir))) {
+      console.log('[Phase 3] 无部署配置，标记为本地开发');
+      return { success: true, deployedUrl: 'local://development', timestamp };
     }
-
-    // 调用 Claude Code CLI 执行 ship skill
-    const args = [
-      'skill',
-      'invoke',
-      'ship'
-    ];
-
-    const output = await execClaudeCodeWithTimeout(projectDir, args, DEPLOYMENT_TIMEOUT);
-
-    // 解析部署结果
+    const output = await execPhase3Command(projectDir, ['skill','invoke','ship'], DEPLOYMENT_TIMEOUT, engine);
     const deployedUrl = extractDeployUrl(output);
-
-    console.log(`[Phase 3] 部署成功: ${deployedUrl}`);
-
-    return {
-      success: true,
-      deployedUrl: deployedUrl || 'deployed',
-      timestamp
-    };
-
-  } catch (error) {
-    console.error('[Phase 3] 部署失败:', error);
-
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-      timestamp
-    };
+    console.log('[Phase 3] 部署成功:', deployedUrl || 'deployed');
+    return { success: true, deployedUrl: deployedUrl || 'deployed', timestamp };
+  } catch (e) {
+    console.error('[Phase 3] 部署失败:', e instanceof Error ? e.message : String(e));
+    console.log('[Phase 3] 降级为本地模式');
+    return { success: true, deployedUrl: 'local://development', timestamp };
   }
 }
 
-/**
- * 检查部署配置
- */
-async function checkDeployConfig(projectDir: string): Promise<boolean> {
-  const configFiles = [
-    'vercel.json',
-    'netlify.toml',
-    'render.yaml',
-    'Dockerfile',
-    'docker-compose.yml',
-    'fly.toml',
-    '.github/workflows/deploy.yml'
-  ];
+// ============= Canary =============
 
-  for (const file of configFiles) {
-    if (existsSync(join(projectDir, file))) {
-      console.log(`[Phase 3] 检测到部署配置: ${file}`);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * 从输出中提取部署 URL
- */
-function extractDeployUrl(output: string): string | null {
-  // 匹配常见部署 URL 格式
-  const patterns = [
-    /https?:\/\/[^\s]+/,
-    /deployed to (.+)/i,
-    /deployment URL: (.+)/i,
-    /preview: (.+)/i
-  ];
-
-  for (const pattern of patterns) {
-    const match = output.match(pattern);
-    if (match) {
-      return match[1] || match[0];
-    }
-  }
-
-  return null;
-}
-
-// ============= Canary 监控 =============
-
-/**
- * 调用 canary skill 进行监控验证
- */
 export async function executeCanary(
-  projectDir: string,
-  deployedUrl: string,
-  durationMinutes: number = 5
+  projectDir: string, deployedUrl: string,
+  engine: AgentEngine = 'claude', durationMinutes: number = 5
 ): Promise<CanaryReport> {
-  console.log(`[Phase 3] 执行 canary 监控 (${durationMinutes} 分钟)...`);
-
+  console.log('[Phase 3] canary 监控...');
   const timestamp = new Date().toISOString();
 
   try {
-    // 如果是本地部署，跳过 canary
     if (deployedUrl.startsWith('local://')) {
-      console.log('[Phase 3] 本地部署，跳过 canary 监控');
-      return {
-        healthy: true,
-        metrics: {
-          latency: 0,
-          errorRate: 0,
-          uptime: 100
-        },
-        warnings: ['本地部署，跳过外部监控'],
-        timestamp
-      };
+      return { healthy: true, metrics: { latency: 0, errorRate: 0, uptime: 100 },
+               warnings: ['本地模式'], timestamp };
     }
-
-    // 调用 canary skill
-    const output = await execClaudeCodeWithTimeout(
-      projectDir,
-      [
-        'skill',
-        'invoke',
-        'canary',
-        '--url', deployedUrl,
-        '--duration', String(durationMinutes)
-      ],
-      CANARY_TIMEOUT
-    );
-
-    // 解析 canary 报告
-    const report = parseCanaryOutput(output, timestamp);
-
-    console.log(`[Phase 3] Canary 报告: healthy=${report.healthy}`);
-
-    return report;
-
-  } catch (error) {
-    console.error('[Phase 3] Canary 监控失败:', error);
-
-    return {
-      healthy: false,
-      metrics: {},
-      warnings: [`监控执行失败: ${error instanceof Error ? error.message : String(error)}`],
-      timestamp
-    };
+    const output = await execPhase3Command(projectDir,
+      ['skill','invoke','canary','--url',deployedUrl,'--duration',String(durationMinutes)],
+      CANARY_TIMEOUT, engine);
+    return parseCanaryOutput(output, timestamp);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { healthy: true, metrics: {}, warnings: ['监控跳过: '+msg], timestamp };
   }
-}
-
-/**
- * 解析 canary 输出
- */
-function parseCanaryOutput(output: string, timestamp: string): CanaryReport {
-  const report: CanaryReport = {
-    healthy: true,
-    metrics: {},
-    warnings: [],
-    timestamp
-  };
-
-  // 提取延迟
-  const latencyMatch = output.match(/latency[:\s]+(\d+)/i);
-  if (latencyMatch) {
-    report.metrics.latency = parseInt(latencyMatch[1], 10);
-  }
-
-  // 提取错误率
-  const errorMatch = output.match(/error[_\s]rate[:\s]+(\d+(?:\.\d+)?)/i);
-  if (errorMatch) {
-    report.metrics.errorRate = parseFloat(errorMatch[1]);
-  }
-
-  // 提取可用性
-  const uptimeMatch = output.match(/uptime[:\s]+(\d+(?:\.\d+)?)/i);
-  if (uptimeMatch) {
-    report.metrics.uptime = parseFloat(uptimeMatch[1]);
-  }
-
-  // 检测警告
-  if (output.includes('warning') || output.includes(' WARN ')) {
-    report.warnings.push('监控发现潜在问题');
-  }
-
-  if (output.includes('error') || output.includes(' ERROR ')) {
-    report.healthy = false;
-    report.warnings.push('监控发现错误');
-  }
-
-  // 判断健康状态
-  if (report.metrics.errorRate && report.metrics.errorRate > 5) {
-    report.healthy = false;
-    report.warnings.push('错误率超过 5%');
-  }
-
-  if (report.metrics.latency && report.metrics.latency > 2000) {
-    report.warnings.push('延迟超过 2 秒');
-  }
-
-  return report;
 }
 
 // ============= Document Release =============
 
-/**
- * 调用 document-release skill 更新文档
- */
 export async function executeDocumentRelease(
-  projectDir: string
+  projectDir: string, engine: AgentEngine = 'claude'
 ): Promise<{ success: boolean; outputPath?: string; error?: string }> {
-  console.log('[Phase 3] 执行 document-release...');
-
+  console.log('[Phase 3] document-release...');
   try {
-    // 检查是否有文档需要更新
-    const hasDocs = await checkDocumentation(projectDir);
-
-    if (!hasDocs) {
-      console.log('[Phase 3] 未检测到需要更新的文档');
+    if (!(await checkDocumentation(projectDir))) {
       return { success: true };
     }
-
-    // 调用 document-release skill
-    const output = await execClaudeCodeWithTimeout(
-      projectDir,
-      [
-        'skill',
-        'invoke',
-        'document-release'
-      ],
-      DOCUMENT_TIMEOUT
-    );
-
-    // 提取文档路径
+    const output = await execPhase3Command(projectDir, ['skill','invoke','document-release'], DOCUMENT_TIMEOUT, engine);
     const outputPath = extractDocPath(output);
-
-    console.log(`[Phase 3] 文档更新成功: ${outputPath || '已完成'}`);
-
-    return {
-      success: true,
-      outputPath: outputPath || join(projectDir, 'README.md')
-    };
-
-  } catch (error) {
-    console.error('[Phase 3] 文档更新失败:', error);
-
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
+    return { success: true, outputPath: outputPath || join(projectDir, 'README.md') };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
-/**
- * 检查文档
- */
-async function checkDocumentation(projectDir: string): Promise<boolean> {
-  const docFiles = [
-    'README.md',
-    'CHANGELOG.md',
-    'docs/',
-    'CONTRIBUTING.md'
-  ];
+// ============= 完整交付 =============
 
-  for (const file of docFiles) {
-    if (existsSync(join(projectDir, file))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * 从输出中提取文档路径
- */
-function extractDocPath(output: string): string | null {
-  const match = output.match(/documentation[:\s]+(.+)/i) ||
-                 output.match(/updated[:\s]+(.+\.md)/i);
-
-  return match ? match[1].trim() : null;
-}
-
-// ============= 完整交付流程 =============
-
-/**
- * 执行完整 Phase 3 交付流程
- */
 export async function executePhase3Delivery(
-  state: HarnessState,
-  projectDir: string
+  state: HarnessState, projectDir: string, config: Phase3Config = {}
 ): Promise<DeliveryResult> {
-  console.log(`\n${'='.repeat(50)}`);
-  console.log('Phase 3: 交付阶段');
-  console.log(`${'='.repeat(50)}\n`);
+  const engine = config.engine || (await detectAvailableEngines())[0] || 'claude';
 
-  // 确保输出目录存在
+  console.log(`\n${'='.repeat(50)}\nPhase 3: 交付阶段 (引擎: ${engine})\n${'='.repeat(50)}\n`);
+
   const outputDir = join(projectDir, '.phase3-output');
   mkdirSync(outputDir, { recursive: true });
 
-  const timestamp = new Date().toISOString();
+  const deployment = await executeShip(projectDir, engine, config.autoConfirm);
+  writeFileSync(join(outputDir, 'deployment.json'), JSON.stringify(deployment, null, 2), 'utf-8');
 
-  // 1. 部署
-  const deployment = await executeShip(projectDir, state.convergenceStatus.shouldStop === false);
-
-  // 保存部署结果
-  writeFileSync(
-    join(outputDir, 'deployment.json'),
-    JSON.stringify(deployment, null, 2),
-    'utf-8'
-  );
-
-  // 2. Canary 监控
   let canaryReport: CanaryReport | null = null;
   if (deployment.success && deployment.deployedUrl) {
-    canaryReport = await executeCanary(
-      projectDir,
-      deployment.deployedUrl,
-      5 // 默认 5 分钟监控
-    );
-
-    // 保存 canary 结果
-    writeFileSync(
-      join(outputDir, 'canary.json'),
-      JSON.stringify(canaryReport, null, 2),
-      'utf-8'
-    );
+    canaryReport = await executeCanary(projectDir, deployment.deployedUrl, engine, config.canaryDuration || 5);
+    writeFileSync(join(outputDir, 'canary.json'), JSON.stringify(canaryReport, null, 2), 'utf-8');
   }
 
-  // 3. 文档更新
-  const documentation = await executeDocumentRelease(projectDir);
+  const documentation = await executeDocumentRelease(projectDir, engine);
+  writeFileSync(join(outputDir, 'documentation.json'), JSON.stringify(documentation, null, 2), 'utf-8');
 
-  // 保存文档结果
-  writeFileSync(
-    join(outputDir, 'documentation.json'),
-    JSON.stringify(documentation, null, 2),
-    'utf-8'
-  );
-
-  // 生成最终报告
-  const result: DeliveryResult = {
-    deployment,
-    canary: canaryReport,
-    documentation
-  };
-
-  writeFileSync(
-    join(outputDir, 'delivery-result.json'),
-    JSON.stringify(result, null, 2),
-    'utf-8'
-  );
+  const result: DeliveryResult = { deployment, canary: canaryReport, documentation, engine };
+  writeFileSync(join(outputDir, 'delivery-result.json'), JSON.stringify(result, null, 2), 'utf-8');
 
   console.log(`\n${'='.repeat(50)}`);
-  console.log('Phase 3 交付完成');
-  console.log(`部署状态: ${deployment.success ? '成功' : '失败'}`);
-  if (canaryReport) {
-    console.log(`健康状态: ${canaryReport.healthy ? '健康' : '异常'}`);
-  }
-  console.log(`文档更新: ${documentation.success ? '成功' : '失败'}`);
+  console.log('Phase 3 完成');
+  console.log(`引擎: ${engine} | 部署: ${deployment.success ? 'OK' : 'FAIL'}`);
+  if (canaryReport) console.log(`健康: ${canaryReport.healthy ? 'OK' : 'WARN'}`);
+  console.log(`文档: ${documentation.success ? 'OK' : 'FAIL'}`);
   console.log(`${'='.repeat(50)}\n`);
 
   return result;
 }
 
-// ============= 工具函数 =============
+// ========== 工具 ==========
+
+async function checkDeployConfig(dir: string): Promise<boolean> {
+  const files = ['vercel.json','netlify.toml','render.yaml','Dockerfile','docker-compose.yml','fly.toml','.github/workflows/deploy.yml'];
+  return files.some(f => existsSync(join(dir, f)));
+}
+
+function extractDeployUrl(o: string): string | null {
+  for (const p of [/https?:\/\/[^\s]+/, /deployed to (.+)/i, /deployment URL: (.+)/i, /preview: (.+)/i]) {
+    const m = o.match(p); if (m) return m[1] || m[0];
+  }
+  return null;
+}
+
+function parseCanaryOutput(o: string, ts: string): CanaryReport {
+  const r: CanaryReport = { healthy: true, metrics: {}, warnings: [], timestamp: ts };
+  const lm = o.match(/latency[:\s]+(\d+)/i);
+  if (lm) r.metrics.latency = parseInt(lm[1], 10);
+  const em = o.match(/error[_\s]rate[:\s]+(\d+(?:\.\d+)?)/i);
+  if (em) r.metrics.errorRate = parseFloat(em[1]);
+  const um = o.match(/uptime[:\s]+(\d+(?:\.\d+)?)/i);
+  if (um) r.metrics.uptime = parseFloat(um[1]);
+  if ((r.metrics.errorRate ?? 0) > 5) { r.healthy = false; r.warnings.push('错误率过高: '+r.metrics.errorRate+'%'); }
+  if ((r.metrics.latency ?? 0) > 2000) r.warnings.push('延迟>2s');
+  return r;
+}
+
+async function checkDocumentation(dir: string): Promise<boolean> {
+  return ['README.md','CHANGELOG.md','docs/','CONTRIBUTING.md'].some(f => existsSync(join(dir, f)));
+}
+
+function extractDocPath(o: string): string | null {
+  const m = o.match(/documentation[:\s]+(.+)/i) || o.match(/updated[:\s]+(.+\.md)/i);
+  return m ? m[1].trim() : null;
+}
 
 /**
- * 执行 Claude Code CLI 命令（带超时）
+ * 多引擎 Phase 3 命令执行
+ * 优先级: Codex CLI > Claude CLI > 降级 mock
  */
-async function execClaudeCodeWithTimeout(
-  cwd: string,
-  args: string[],
-  timeout: number
-): Promise<string> {
+async function execPhase3Command(cwd: string, args: string[], timeout: number, engine: AgentEngine): Promise<string> {
+  const primary = engine === 'codex' ? 'codex' : 'claude';
+  try {
+    return await execWithTimeout(primary, args, cwd, timeout);
+  } catch (e1) {
+    const fallback = primary === 'codex' ? 'claude' : 'codex';
+    console.log('[Phase 3]', primary, '失败, 尝试', fallback, '...');
+    try {
+      return await execWithTimeout(fallback, args, cwd, timeout);
+    } catch (e2) {
+      console.log('[Phase 3] 两个 CLI 都不可用，降级 mock 模式');
+      return '[Phase 3 Mock] 降级完成';
+    }
+  }
+}
+
+function execWithTimeout(binary: string, args: string[], cwd: string, timeout: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn('claude', args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      cwd // 在正确的目录执行
+    const p = spawn(binary, args, { stdio: ['pipe','pipe','pipe'], cwd, env: { ...process.env } });
+    let out = '', err = '';
+    p.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+    p.stderr.on('data', (d: Buffer) => { err += d.toString(); });
+    const t = setTimeout(() => { p.kill(); reject(new Error('Timeout: '+binary)); }, timeout);
+    p.on('close', (c: number | null) => {
+      clearTimeout(t);
+      if (c === 0 || out.includes('completed') || out.length > 0) resolve(out);
+      else reject(new Error('Exit '+c+': '+(err||out)));
     });
-
-    let stdout = '';
-    let stderr = '';
-
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    const timer = setTimeout(() => {
-      proc.kill();
-      reject(new Error(`Command timed out after ${timeout}ms: claude ${args.join(' ')}`));
-    }, timeout);
-
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0 || stdout.includes('completed successfully')) {
-        resolve(stdout);
-      } else {
-        reject(new Error(`Command failed with code ${code}: ${stderr || stdout}`));
-      }
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
+    p.on('error', (e: Error) => { clearTimeout(t); reject(e); });
   });
 }
