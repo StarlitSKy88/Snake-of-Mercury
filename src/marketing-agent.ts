@@ -10,6 +10,7 @@
  */
 
 import { execCommand, executeAgent, type AgentEngine } from './utils/agent-executor.js';
+import { createAiToEarnClient, type AiToEarnClient, type PublishResult, type EarningsSummary } from './integrations/aitoearn-client.js';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -62,6 +63,13 @@ export interface MarketingState {
   optimizationTasks: OptimizationTask[];
   feedback: UserFeedback[];
   lastFetchTimestamp: string;
+  /** AiToEarn MCP 集成配置 */
+  aitoearn?: {
+    apiKey?: string;
+    enabled: boolean;
+    lastPublishTimestamp?: string;
+    totalEarnings?: EarningsSummary;
+  };
 }
 
 // ============= 常量 =============
@@ -78,6 +86,8 @@ export class MarketingAgent {
   private onTaskGenerated?: (task: OptimizationTask) => void;
   private fetchTimer?: ReturnType<typeof setInterval>;
 
+  private aitoearn: AiToEarnClient | null = null;
+
   constructor(
     baseDir: string,
     engine: AgentEngine = 'claude',
@@ -87,6 +97,12 @@ export class MarketingAgent {
     this.engine = engine;
     this.onTaskGenerated = onTaskGenerated;
     this.state = this.loadState();
+    // 初始化 AiToEarn（从环境变量）
+    this.aitoearn = createAiToEarnClient();
+    if (this.aitoearn) {
+      console.log('[Marketing] 🤖 AiToEarn MCP 已连接 (12平台)');
+      this.state.aitoearn = { enabled: true };
+    }
   }
 
   /**
@@ -294,6 +310,141 @@ export class MarketingAgent {
 待优化任务: ${pendingTasks}/${totalTasks}
 反馈: ${this.state.feedback.length} 条
 数据源: ${this.state.analyticsSources.map(s => s.name).join(', ') || '未配置'}`;
+  }
+
+  // ========== AiToEarn MCP 变现方法 ==========
+
+  /**
+   * 自动发布项目推广内容到12个平台
+   * 在项目部署成功后调用
+   */
+  async publishContent(params: {
+    projectName: string;
+    description: string;
+    deployedUrl: string;
+    mediaUrls?: { url: string; type: 'image' | 'video'; name: string }[];
+    platformTargets?: string[];
+  }): Promise<PublishResult | null> {
+    if (!this.aitoearn) {
+      console.log('[Marketing] AiToEarn 未配置，跳过内容发布');
+      return null;
+    }
+
+    console.log('[Marketing] 📢 通过 AiToEarn 发布推广内容...');
+
+    try {
+      const title = this.generatePromoTitle(params.projectName, params.description);
+      const content = this.generatePromoContent(params.projectName, params.description, params.deployedUrl);
+
+      const { publish } = await this.aitoearn.createAndPublish({
+        title,
+        content,
+        topics: this.extractTopics(params.projectName, params.description),
+        mediaUrls: params.mediaUrls,
+        platformTargets: params.platformTargets,
+      });
+
+      // 记录发布
+      this.state.aitoearn = {
+        ...this.state.aitoearn,
+        enabled: true,
+        lastPublishTimestamp: new Date().toISOString(),
+      };
+      this.saveState();
+
+      const successCount = Object.values(publish.platforms).filter(p => p.published).length;
+      console.log(`[Marketing] ✅ 推广内容已发布到 ${successCount} 个平台`);
+      return publish;
+    } catch (error) {
+      console.error('[Marketing] AiToEarn 发布失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 查询 AiToEarn 收益
+   */
+  async getEarnings(period: string = '30d'): Promise<EarningsSummary | null> {
+    if (!this.aitoearn) return null;
+
+    try {
+      const earnings = await this.aitoearn.getEarningsSummary(period);
+      this.state.aitoearn = {
+        ...this.state.aitoearn,
+        enabled: true,
+        totalEarnings: earnings,
+      };
+      this.saveState();
+      return earnings;
+    } catch (error) {
+      console.error('[Marketing] 收益查询失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 配置 AiToEarn API Key
+   */
+  configureAiToEarn(apiKey: string): void {
+    this.aitoearn = createAiToEarnClient(apiKey);
+    this.state.aitoearn = { enabled: true };
+    this.saveState();
+    console.log('[Marketing] ✅ AiToEarn 已配置');
+  }
+
+  /**
+   * 检查 AiToEarn 是否可用
+   */
+  isAiToEarnReady(): boolean {
+    return this.aitoearn !== null;
+  }
+
+  /**
+   * 获取 AiToEarn 状态摘要
+   */
+  getAiToEarnSummary(): string {
+    if (!this.aitoearn) return 'AiToEarn 未配置 (设置 AITO_EARN_API_KEY 环境变量)';
+    const last = this.state.aitoearn?.lastPublishTimestamp;
+    const earnings = this.state.aitoearn?.totalEarnings;
+    let summary = '🤖 AiToEarn: 已连接 (12平台)';
+    if (last) summary += ` | 上次发布: ${new Date(last).toLocaleDateString()}`;
+    if (earnings) summary += ` | CPS: $${earnings.totalCPS} CPE: $${earnings.totalCPE}`;
+    return summary;
+  }
+
+  // ========== 内容生成辅助 ==========
+
+  private generatePromoTitle(projectName: string, _description: string): string {
+    const templates = [
+      `🚀 新品上线：${projectName} — 让效率飞起来`,
+      `${projectName} 正式发布！这个工具解决了我的大问题`,
+      `用了 ${projectName} 之后，我的工作效率提升了3倍`,
+    ];
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+
+  private generatePromoContent(projectName: string, description: string, url: string): string {
+    return `## ${projectName}
+
+${description}
+
+🔗 体验地址: ${url}
+
+### 核心功能
+- 全自动AI开发驱动
+- 7×24小时迭代优化
+- 数据驱动决策
+
+#AI工具 #效率提升 #自动化`;
+  }
+
+  private extractTopics(projectName: string, description: string): string[] {
+    const combined = `${projectName} ${description}`.toLowerCase();
+    const topics: string[] = ['AI工具'];
+    if (combined.includes('效率') || combined.includes('自动化')) topics.push('效率提升');
+    if (combined.includes('数据') || combined.includes('分析')) topics.push('数据分析');
+    if (combined.includes('开发') || combined.includes('代码')) topics.push('开发工具');
+    return topics;
   }
 
   // ========== 内部 ==========
