@@ -1,0 +1,21 @@
+{
+  "verdict": "ROLLBACK",
+  "totalScore": 5.175,
+  "dimensionScores": {
+    "productDepth": 5.5,
+    "userExperience": 5,
+    "codeQuality": 2,
+    "security": 9
+  },
+  "issues": [
+    "**总分 5.175 < 8.0**（通过门槛）",
+    "**代码质量 2.0 < 7.0**（单项低于门槛）",
+    "**添加测试文件**：至少覆盖核心逻辑（validator, useCounter）",
+    "**添加 README.md**：说明项目结构、使用方法、API 文档",
+    "**实现 Loading 状态**：在适当位置使用 isLoading",
+    "**添加数据导出 UI 入口**：ExportButton 或 ExportPanel 组件"
+  ],
+  "evaluatorBiasWarnings": [
+    "[范围违规] codeQuality 评分波动 3.0 分（5 → 2），超过 2 分阈值"
+  ]
+}

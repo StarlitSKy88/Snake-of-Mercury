@@ -1,0 +1,131 @@
+{
+  "overview": "Phase 0 收敛验证工具 - Simple Counter App。核心价值：作为 Phase 0 追问收敛能力的验证载体，而非独立商业产品。通过构建一个最小化的计数器应用，验证「3轮强制选择提问 → 收敛需求假设」这一核心流程是否成立。技术选型由收敛结果驱动，非预设假设。",
+
+  "featureList": {
+    "must": [
+      "单页面计数器界面（+1/-1 大按钮，触控友好）",
+      "当前计数显示（大字号，清晰可读）",
+      "Reset 按钮（带确认防误触）",
+      "LocalStorage 自动持久化（每次变更即时保存）",
+      "移动端基础适配（ viewport 、无缩放、无滚动）",
+      "刷新页面后计数不丢失"
+    ],
+    "should": [
+      "按钮按下视觉反馈（CSS transition）",
+      "计数变化微动画（数字变化有平滑过渡）",
+      "键盘支持（桌面端 +/=- 快捷键）",
+      "数据导出 JSON 功能（防止 LocalStorage 清除丢失）",
+      "数据导入 JSON 功能（恢复备份）"
+    ],
+    "could": [
+      "多计数器支持（命名、切换）",
+      "计数历史（最近 N 条操作记录）",
+      "深色模式（跟随系统偏好）",
+      "自定义步进值配置",
+      "达到目标时提醒（Toast 通知）",
+      "PWA 离线支持（Service Worker）"
+    ]
+  },
+
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": [
+        "实现核心计数器功能（+1/-1/Reset）",
+        "搭建项目结构（TypeScript + Vite）",
+        "完成基础 LocalStorage 持久化",
+        "移动端基础适配"
+      ],
+      "acceptanceCriteria": [
+        "用户可一键 +1/-1",
+        "Reset 有确认对话框",
+        "刷新页面后计数不丢失",
+        "iOS Safari 和 Android Chrome 正常显示",
+        "无控制台错误"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "单页应用，零后端依赖",
+        "状态不可变更新模式",
+        "LocalStorage 单 key 存储（counter_app_state）"
+      ]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": [
+        "完善触摸体验（无缩放、无抖动）",
+        "视觉反馈优化（按钮状态、计数动画）",
+        "键盘快捷键支持（桌面端）",
+        "数据导出/导入功能"
+      ],
+      "acceptanceCriteria": [
+        "移动端点击无缩放（touch-action: manipulation）",
+        "+1/-1 按钮有即时视觉反馈",
+        "桌面端支持 +/-/R 键盘快捷键",
+        "可导出当前计数为 JSON 文件",
+        "可从 JSON 文件导入恢复计数"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "触摸事件正确处理（preventDefault 防止双击缩放）",
+        "动画使用 CSS transition 而非 JS",
+        "导出文件名格式：counter-backup-{timestamp}.json"
+      ]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": [
+        "多计数器支持（根据用户反馈决定优先级）",
+        "计数器命名与切换",
+        "Vercel 部署与验证",
+        "基础使用验证（收集 Phase 0 能力验证数据）"
+      ],
+      "acceptanceCriteria": [
+        "用户可创建、命名、切换多个计数器",
+        "所有计数器独立持久化",
+        "部署到 Vercel 并验证可用性",
+        "页面加载 < 1s（3G 网络）",
+        "确认 Phase 0 收敛流程已闭环"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "多计数器数据存储在 LocalStorage 单 key 下（counter_app_data）",
+        "部署配置 vercel.json",
+        "部署后进行功能回归测试"
+      ]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": [
+        "文档完善（README + 使用说明）",
+        "GitHub Repo 整理",
+        "发布准备（域名绑定、SEO 配置）",
+        "Phase 0 收敛能力复盘"
+      ],
+      "acceptanceCriteria": [
+        "README 包含：功能说明、快速开始、架构图",
+        "GitHub / Vercel 部署地址可用",
+        "Meta 标签完整（SEO + 社交分享）",
+        "页脚包含反馈入口",
+        "输出 Phase 0 收敛能力验证报告"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "README 使用 Markdown，格式清晰",
+        "无敏感信息泄露",
+        "部署后手动测试关键流程"
+      ]
+    }
+  ],
+
+  "technicalDirection": "技术栈由收敛结果驱动（颠覆式 vs 渐进式决定前端复杂度）：\n\n**Phase 0 收敛决策点：**\n- 若判定为「颠覆式」： Vanilla TypeScript + Vite（无框架，验证极限轻量化）\n- 若判定为「渐进式」： React + TypeScript（可扩展性优先，验证快速迭代）\n\n**通用约束：**\n- 单页应用，零后端依赖\n- LocalStorage 持久化（数据自己掌控）\n- 移动端优先，响应式布局\n- CSS transition 动画（性能优先）\n- 部署：Vercel（默认）或 GitHub Pages\n\n**架构原则：**\n- 不可变状态更新\n- 六字段状态机（继承 Phase 0 追问引擎的设计）\n- 单一数据源（LocalStorage）\n- 无外部运行时依赖（字体、系统栈）",
+
+  "acceptanceStandards": [
+    "Sprint 1: 核心计数器可运行，+1/-1/Reset 工作正常，刷新不丢数据",
+    "Sprint 2: 触摸体验无明显问题，键盘快捷键工作，导出/导入功能正常",
+    "Sprint 3: 多计数器切换正常，Vercel 部署成功，加载时间 < 1s",
+    "Sprint 4: 文档完整，SEO 友好，可分享链接",
+    "所有 Sprint: 无控制台错误，移动端测试通过",
+    "Phase 0 验证: 3轮强制选择提问能收敛到可执行的需求假设清单"
+  ]
+}

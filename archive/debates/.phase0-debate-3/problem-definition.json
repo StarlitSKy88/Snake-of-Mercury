@@ -1,0 +1,185 @@
+{
+  "contextSnapshot": {
+    "timestamp": "2026-04-16T00:00:00Z",
+    "userRequest": "计数器应用",
+    "currentProject": "Snake of Mercury - Phase 0 需求发现与创新决策 AI 助手",
+    "requestOrigin": "用户在现有项目基础上新增需求，但尚未明确具体使用场景和目标用户"
+  },
+  "problemStatement": {
+    "statement": "用户需要一个简洁高效的计数器工具，用于记录日常事务的执行次数，支持快速计数操作和历史记录查看。",
+    "whyNow": "快节奏生活中，人们经常需要追踪重复任务的完成情况（如健身次数、喝水杯数、习惯打卡等），现有解决方案要么功能过于复杂，要么缺乏跨平台同步能力。",
+    "hypothesis": "一个极简、多端同步的计数器应用可以满足这一细分需求"
+  },
+  "jtbd": {
+    "jobs": [
+      {
+        "id": "JTBD-1",
+        "task": "快速记录单次计数",
+        "trigger": "完成某个动作后立即点击计数",
+        "frequency": "每天多次"
+      },
+      {
+        "id": "JTBD-2",
+        "task": "查看计数历史/趋势",
+        "trigger": "回顾习惯养成进度",
+        "frequency": "每天一次"
+      },
+      {
+        "id": "JTBD-3",
+        "task": "重置计数器",
+        "trigger": "新周期开始（如新月/新周）",
+        "frequency": "每周/每月"
+      },
+      {
+        "id": "JTBD-4",
+        "task": "多计数器管理",
+        "trigger": "同时追踪多个习惯",
+        "frequency": "日常"
+      }
+    ],
+    "targetUsers": [
+      "习惯养成者（健身、学习、冥想等）",
+      "日常生活中需要记录重复行为的人",
+      "需要轻量级工具而非复杂项目管理系统的用户"
+    ]
+  },
+  "currentAlternativesAndGaps": {
+    "existingSolutions": [
+      {
+        "name": "手机自带计数器 Widget",
+        "limitation": "功能单一，无同步，无历史"
+      },
+      {
+        "name": "Notes/备忘录手动记录",
+        "limitation": "操作繁琐，无法快速计数"
+      },
+      {
+        "name": "Habitica/Loop Habit 等习惯追踪App",
+        "limitation": "功能过于复杂，学习成本高"
+      },
+      {
+        "name": "Excel/电子表格",
+        "limitation": "需要打开特定设备，不够便捷"
+      }
+    ],
+    "gaps": [
+      "缺乏一键计数的极简体验",
+      "缺乏跨设备同步能力",
+      "缺乏轻量级历史可视化",
+      "缺乏多端一致的UI体验"
+    ]
+  },
+  "evidenceAndAssumptionsLog": {
+    "evidence": [
+      "计数器是智能手机最早内置的功能之一，说明需求真实存在",
+      "App Store上有大量「计数器」应用，表明市场需求持续"
+    ],
+    "assumptions": [
+      {
+        "id": "A1",
+        "assumption": "用户更倾向于使用独立App而非网页版",
+        "confidence": "中",
+        "validationNeeded": "是否需要网页版或小程序"
+      },
+      {
+        "id": "A2",
+        "assumption": "同步功能是核心需求",
+        "confidence": "中",
+        "validationNeeded": "是否可以先做本地版验证"
+      },
+      {
+        "id": "A3",
+        "assumption": "用户愿意为简洁体验付费或接受广告",
+        "confidence": "低",
+        "validationNeeded": "商业模式验证"
+      }
+    ]
+  },
+  "successCriteriaAndGuardrails": {
+    "successMetrics": [
+      {
+        "metric": "单次计数操作完成时间",
+        "target": "< 1秒",
+        "measurement": "用户点击到数字更新"
+      },
+      {
+        "metric": "日活跃用户留存率（7日后）",
+        "target": "> 40%",
+        "measurement": "对比下载量"
+      },
+      {
+        "metric": "用户创建的平均计数器数量",
+        "target": "3-5个",
+        "measurement": "首周用户行为"
+      }
+    ],
+    "guardrails": [
+      "不收集不必要的用户数据",
+      "离线优先，同步作为增强功能",
+      "不追求功能堆叠，保持核心简洁"
+    ]
+  },
+  "scopeBoundaries": {
+    "inScope": [
+      "单次计数/减少操作",
+      "多计数器创建与管理",
+      "基础历史记录展示",
+      "本地数据持久化",
+      "iOS/Android 移动端"
+    ],
+    "outOfScope": [
+      "云端同步（首版）",
+      "社交分享功能",
+      "复杂数据分析和图表",
+      "提醒/通知功能",
+      "网页版/桌面端"
+    ],
+    "deferrable": [
+      "Apple Watch 独立应用",
+      "Siri Shortcuts 集成",
+      "Widget 复杂功能"
+    ]
+  },
+  "prototypeAndLearningPlan": {
+    "validationSequence": [
+      {
+        "phase": 1,
+        "name": "原型验证 - 纸质原型",
+        "duration": "1天",
+        "objective": "验证核心交互流程（点击→计数→保存）是否直观",
+        "successCriteria": "5个用户中4个能在无提示情况下完成计数操作"
+      },
+      {
+        "phase": 2,
+        "name": "原型验证 - 功能原型",
+        "duration": "3-5天",
+        "objective": "使用Flutter/React Native构建可运行原型，在真实设备上测试",
+        "successCriteria": "完成核心计数流程的操作完成率 > 90%"
+      },
+      {
+        "phase": 3,
+        "name": "MVP 发布",
+        "duration": "2-3周",
+        "objective": "发布到 TestFlight/Google Play Beta",
+        "successCriteria": "获取100名真实用户，建立反馈渠道"
+      },
+      {
+        "phase": 4,
+        "name": "迭代验证",
+        "duration": "持续",
+        "objective": "根据用户反馈决定云同步等功能优先级",
+        "successCriteria": "NPS > 40%"
+      }
+    ],
+    "risksAndMitigation": [
+      {
+        "risk": "功能过于简单，用户留存率低",
+        "mitigation": "专注于体验细节和流畅度，让简单变得不平凡"
+      },
+      {
+        "risk": "大厂竞争（Apple原生功能）",
+        "mitigation": "聚焦跨平台同步和自定义灵活性作为差异化点"
+      }
+    ]
+  }
+}

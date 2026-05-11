@@ -1,0 +1,16 @@
+{
+  "contextSnapshot": "计数器应用",
+  "problemStatement": "计数器应用",
+  "jtbd": "待定义",
+  "currentAlternatives": "待分析",
+  "evidenceAndAssumptions": [],
+  "successCriteria": [
+    "功能完整",
+    "可正常运行"
+  ],
+  "scopeBoundaries": {
+    "inScope": [],
+    "outOfScope": []
+  },
+  "prototypePlan": "待规划"
+}

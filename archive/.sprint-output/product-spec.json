@@ -1,0 +1,156 @@
+{
+  "overview": "Snake of Mercury 是一款基于苏格拉底式追问机制的产品创新辅助 AI 系统。核心价值在于边验证边澄清，而非线性等待——用户输入模糊念头，系统通过强制选择式提问在 3 轮内输出带置信度的需求假设清单，并经过多 Agent 辩论收敛，最终生成可执行的 Sprint 规划。系统采用 Developer-Supervisor 分离机制确保代码质量，通过四维评分体系（产品深度、用户体验、代码质量、安全合规）进行迭代优化。",
+  "featureList": {
+    "must": [
+      "Phase 0 问卷收敛引擎（强制选择式提问，六字段状态机）",
+      "Phase 0 多 Agent 辩论引擎（5视角并行洞察→质疑→回应→收敛）",
+      "Phase 1 Sprint 规划生成器（基于辩论结果的自动规划）",
+      "Phase 2 Developer-Supervisor 分离执行机制",
+      "Phase 2 四维评分体系（产品深度35%、用户体验30%、代码质量20%、安全合规15%）",
+      "收敛检测器（STOP/CONTINUE/EXPLORE/ROLLBACK 四态判断）",
+      "回滚管理器（快照创建、git 回滚、历史记录）",
+      "状态持久化（JSON 文件存储 HarnessState）",
+      "TypeScript + Zod 类型验证"
+    ],
+    "should": [
+      "Phase 3 自动部署集成（Vercel/Netlify）",
+      "Canary 部署监控与报告",
+      "迭代历史可视化面板",
+      "评分标准线自动生成（'达到X分意味着...'）",
+      "多 Agent 辩论目录自动清理",
+      "CLI 交互式界面（Inquirer 菜单）",
+      "Webhook 通知集成（Slack/飞书）"
+    ],
+    "could": [
+      "Phase 0 问卷自定义模板",
+      "历史辩论案例库",
+      "Phase 2 实时代码协同编辑",
+      "性能基准测试报告生成",
+      "用户画像自动分析",
+      "竞品对比分析模块",
+      "自然语言描述转伪代码",
+      "多语言支持（English/日本語）"
+    ]
+  },
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": [
+        "实现 Phase 0 问卷收敛核心功能",
+        "实现创新类型判断节点（第一轮强制问颠覆式/渐进式）",
+        "实现决策卡点定位器（需求/技术/商业/规模化四维度）",
+        "实现六字段状态机管理",
+        "完成基础测试覆盖（80%+）"
+      ],
+      "acceptanceCriteria": [
+        "用户输入任意模糊念头，系统第一轮必须问'颠覆式还是渐进式'",
+        "未问创新类型判断问题，系统拒绝输出任何分析结论",
+        "决策卡点定位后，能根据卡点类型选择对应追问模板",
+        "六字段状态机正确跟踪问卷进度",
+        "空白字段高亮显示但不阻断进度",
+        "所有核心函数有单元测试"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "强制选择式提问，不允许无限开放式问答",
+        "最多3轮追问",
+        "状态不可变更新"
+      ]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": [
+        "实现 Phase 0 多 Agent 辩论引擎",
+        "实现 5 视角并行洞察机制",
+        "实现互相质疑与回应循环",
+        "实现 Planner 整合收敛",
+        "优化收敛检测逻辑"
+      ],
+      "acceptanceCriteria": [
+        "5个Agent（需求重构洞察者、颠覆式创新官、商业闭环操盘手、工程落地官、规划收敛者）可并行执行",
+        "Round 1: 各Agent独立输出洞察（不看其他Agent）",
+        "Round 2: 各Agent读取其他4个输出，提出质疑",
+        "Round 3: 各Agent回应针对自己的质疑",
+        "Planner能整合所有输出，生成收敛需求和验收标准",
+        "辩论目录结构清晰：round1/ → round2/ → round3/ → synthesis/",
+        "execClaudeCodeWithTimeout 超时控制正常"
+      ],
+      "estimatedDuration": "3-4小时",
+      "technicalConstraints": [
+        "每个Agent是独立的Claude CLI调用",
+        "Agent之间通过读写文件传递信息",
+        "每轮超时 120 秒",
+        "目录清理避免污染"
+      ]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": [
+        "实现 Phase 1 Sprint 规划生成",
+        "实现 Phase 2 Developer-Supervisor 分离机制",
+        "完善四维评分体系",
+        "实现 Supervisor 自动审查",
+        "集成回滚管理器"
+      ],
+      "acceptanceCriteria": [
+        "基于 Phase 0 辩论结果自动生成 ProductSpec JSON",
+        "ProductSpec 包含：overview、featureList（MUST/SHOULD/COULD）、sprintPlan（至少4个Sprint）",
+        "Developer 不可见 Supervisor 审查过程",
+        "Supervisor 可见 Developer 所有输出",
+        "四维评分：总分≥8.0且无单项<7.0为通过",
+        "REJECTED后Developer可修复重试（最多3次）",
+        "ROLLBACK时自动创建快照并执行git回滚",
+        "评分输出必须包含'达到X分意味着...'标准线描述"
+      ],
+      "estimatedDuration": "4-5小时",
+      "technicalConstraints": [
+        "Developer prompt 与 Supervisor prompt 完全隔离",
+        "Supervisor 只能读取 .sprint-output 目录的输出文件",
+        "git 命令参数白名单验证",
+        "Rollback 保留工作目录更改"
+      ]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": [
+        "实现 Phase 3 交付自动化",
+        "实现 Canary 部署监控",
+        "完善 CLI 交互界面",
+        "补充文档和部署配置",
+        "优化错误处理和日志"
+      ],
+      "acceptanceCriteria": [
+        "部署结果自动记录（success/deployedUrl/error/timestamp）",
+        "Canary 报告包含：健康状态、延迟、错误率、运行时间",
+        "CLI 可选择执行Phase（phase0/phase1/phase2/phase3）",
+        "所有阶段转换有清晰的日志输出",
+        "HarnessState 完整持久化到 .harness-state.json",
+        "package.json 包含正确的 scripts",
+        "README.md 包含使用说明和架构图",
+        "错误消息用户友好，不泄露敏感信息"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "autoDeploy 可配置（默认关闭）",
+        "部署前必须通过 Supervisor 审查",
+        "日志分级（INFO/WARN/ERROR）",
+        "状态文件变更自动追踪"
+      ]
+    }
+  ],
+  "technicalDirection": "TypeScript 单体应用，使用 @anthropic-ai/sdk 调用 Claude 模型。状态管理采用不可变更新模式，所有状态变更生成新对象。数据持久化使用 JSON 文件（.harness-state.json）。多 Agent 协作通过文件共享实现（.phase0-debate-N/ 目录结构）。代码组织按 Phase 分层：phase0-questionnaire.ts（问卷）、phase0-debate-engine.ts（辩论）、developer-supervisor.ts（开发监督）、phase3-delivery.ts（交付）、state-machine.ts（状态机）、convergence-detector.ts（收敛检测）、rollback-manager.ts（回滚管理）。测试使用 Vitest，类型验证使用 Zod。",
+  "acceptanceStandards": [
+    "Phase 0 未问创新类型判断问题，系统拒绝输出分析结论",
+    "Phase 0 决策卡点定位后，能根据卡点类型选择对应追问模板",
+    "Phase 0 多 Agent 辩论产生收敛需求和验收标准",
+    "Phase 1 ProductSpec JSON 包含完整的 featureList 和 sprintPlan",
+    "Phase 2 Developer-Supervisor 真正分离，Supervisor 不可见 Developer 实现过程",
+    "Phase 2 Supervisor 评分包含'达到X分意味着...'标准线描述",
+    "Phase 2 ROLLBACK 裁决时自动创建快照并执行回滚",
+    "Phase 3 部署结果和 Canary 监控记录完整",
+    "所有核心函数有单元测试，覆盖率≥80%",
+    "状态不可变更新，无直接 mutation",
+    "git 命令参数白名单验证通过",
+    "CLI 交互流畅，错误消息友好"
+  ]
+}

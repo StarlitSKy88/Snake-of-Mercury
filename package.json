@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "harness": "tsx src/harness-scheduler.ts",
+    "harness:codex": "HARNESS_ENGINE=codex tsx src/harness-scheduler.ts",
     "harness:debug": "tsx --inspect src/harness-scheduler.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest",

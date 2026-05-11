@@ -1,0 +1,397 @@
+{
+  "contextSnapshot": {
+    "projectName": "计数器应用 (Counter App)",
+    "projectType": "移动端轻量工具应用",
+    "phase": "Phase 0 - 需求发现与创新决策",
+    "generatedAt": "2026-04-15",
+    "currentState": "需求初始阶段 - 尚未确定具体创新方向",
+    "existingAssets": [
+      "Snake of Mercury Phase 0 框架",
+      "Sprint 1 已完成的追问引擎",
+      "六字段状态机管理模式"
+    ],
+    "constraints": {
+      "devMode": "一人公司模式 - 单人可独立完成",
+      "techStack": "TypeScript / Python / JavaScript",
+      "deploymentTarget": "Vercel / 本地运行"
+    }
+  },
+
+  "problemStatement": {
+    "summary": "用户需要一种简单、直观的方式来记录和追踪各种 countable events（可计数事件），但现有解决方案要么过于复杂（需要设置多个步骤），要么功能单一（仅支持单一计数器），无法满足用户在日常生活和工作中对多类型计数需求的即时性要求。",
+    "whyNow": [
+      "移动化办公场景激增 - 现场清点、库存统计、签到统计等场景需要随时随地计数",
+      "习惯养成文化兴起 - 习惯追踪、打卡记录需要可视化的计数反馈",
+      "现有工具学习成本过高 - Notion/Excel 等工具需要配置，不够即时",
+      "单一功能计数器无法满足复合需求 - 用户需要管理多个独立计数器"
+    ],
+    "painPoints": [
+      "打开 App 后需要 3+ 步才能开始计数",
+      "无法快速创建新计数器（需要跳转页面/弹窗）",
+      "多计数器管理混乱，无法一眼看清所有计数状态",
+      "数据无法持久化或同步（重启后丢失）",
+      "缺乏基本的统计数据（如同比环比）"
+    ]
+  },
+
+  "jtbd": {
+    "jobs": [
+      {
+        "id": "JTBD-001",
+        "statement": "作为一个普通用户，我想要**快速创建一个新的计数器**，以便即时记录发生的事情",
+        "trigger": "看到需要计数的场景（人流、物品、事件）",
+        "priority": "P0",
+        "successMetric": "从打开App到开始计数 < 3秒"
+      },
+      {
+        "id": "JTBD-002",
+        "statement": "作为一个普通用户，我想要**管理多个独立的计数器**，以便同时追踪不同类型的事项",
+        "trigger": "同时需要追踪多种不同类别的计数",
+        "priority": "P0",
+        "successMetric": "支持至少 10+ 并发计数器，界面不混乱"
+      },
+      {
+        "id": "JTBD-003",
+        "statement": "作为一个普通用户，我想要**计数器数据持久化**，以便下次打开时能继续使用",
+        "trigger": "需要跨会话延续计数记录",
+        "priority": "P1",
+        "successMetric": "数据本地存储，关闭 App 后不丢失"
+      },
+      {
+        "id": "JTBD-004",
+        "statement": "作为一个普通用户，我想要**快速重置或调整计数**，以便修正误触或重新计数",
+        "trigger": "计数错误需要修正",
+        "priority": "P1",
+        "successMetric": "支持一键重置为 0，长按可微调数值"
+      },
+      {
+        "id": "JTBD-005",
+        "statement": "作为一个普通用户，我想要**为计数器添加标签/备注**，以便区分不同计数器的用途",
+        "trigger": "多个类似计数器容易混淆",
+        "priority": "P2",
+        "successMetric": "支持emoji或短文字标签"
+      }
+    ],
+    "targetUsers": [
+      {
+        "persona": "便利店员/仓库管理员",
+        "description": "需要快速清点货物或顾客数量",
+        "keyNeed": "极简界面，一键计数，大数字显示"
+      },
+      {
+        "persona": "习惯养成者",
+        "description": "需要追踪每日习惯完成次数（运动、喝水、读书等）",
+        "keyNeed": "多计数器管理，数据可视化，成就感反馈"
+      },
+      {
+        "persona": "活动组织者",
+        "description": "需要统计签到人数、物资数量",
+        "keyNeed": "快速创建，数据导出，协同分享"
+      },
+      {
+        "persona": "教师/培训师",
+        "description": "统计学生回答问题次数、小组竞赛得分",
+        "keyNeed": "多组同时计数，界面清晰可见"
+      }
+    ]
+  },
+
+  "currentAlternatives": {
+    "existingSolutions": [
+      {
+        "name": "手机自带计数器（计算器App）",
+        "pros": "系统自带，无需下载，响应最快",
+        "cons": "仅支持单一数值，无法命名，无法保存多个计数器，关闭即丢失"
+      },
+      {
+        "name": "Excel / Google Sheets",
+        "pros": "灵活可定制，数据可分析，支持协作",
+        "cons": "手机端操作繁琐，需要手动创建表格，学习成本高，无法快速计数"
+      },
+      {
+        "name": "Notion",
+        "pros": "模板丰富，界面美观，数据管理强大",
+        "cons": "计数需要点击公式或手动更新，路径深，不够即时，轻量化场景过重"
+      },
+      {
+        "name": "专用计数器 App（iOS/Android）",
+        "pros": "功能专一，界面针对计数优化",
+        "cons": "功能单一，增值功能付费，数据孤岛，与工作流割裂"
+      },
+      {
+        "name": "便签/备忘录",
+        "pros": "无需学习，灵活",
+        "cons": "非结构化，依赖手动更新，无法做统计"
+      }
+    ],
+    "gapAnalysis": {
+      " immediacy": "现有工具无法做到「看到事物 → 立刻计数」的零延迟体验",
+      "multiCounterManagement": "缺乏一个能同时管理 5-20 个计数器的轻量级解决方案",
+      "dataPortability": "用户数据被困在单一应用中，无法导出或迁移",
+      "crossPlatform": "缺乏一个在 iOS/Android/Web 多端统一体验的计数器",
+      "smartFeatures": "缺乏基于计数历史的基本分析（趋势、异常、预测）"
+    },
+    "opportunity": "做一个**零学习成本、一触即计、多端同步**的现代计数器应用
+  },
+
+  "evidenceAssumptions": {
+    "evidence": [
+      {
+        "type": "market",
+        "source": "App Store 计数器类应用评论区",
+        "finding": "用户抱怨最多的前3点：1) 创建计数器步骤太多 2) 不支持多计数器 3) 数据丢失"
+      },
+      {
+        "type": "userResearch",
+        "source": "跨应用场景观察",
+        "finding": "人们日常计数场景：签到打卡、库存清点、人数统计、习惯追踪、竞赛计分"
+      },
+      {
+        "type": "technical",
+        "source": "现代前端框架能力",
+        "finding": "React Native / Flutter / PWA 均可实现跨平台计数器应用，本地存储方案成熟"
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "A-001",
+        "statement": "用户愿意为了更好的体验付费/接受广告",
+        "confidence": "60%",
+        "validationMethod": "上线免费版后观察付费转化率"
+      },
+      {
+        "id": "A-002",
+        "statement": "5-10个并发计数器可以满足90%的日常场景",
+        "confidence": "80%",
+        "validationMethod": "上线后监测单用户最大计数器使用数"
+      },
+      {
+        "id": "A-003",
+        "statement": "本地存储（localStorage/AsyncStorage）足够满足数据持久化需求，无需云同步",
+        "confidence": "70%",
+        "validationMethod": "用户调研中确认是否需要云端同步"
+      },
+      {
+        "id": "A-004",
+        "statement": "用户更偏好简单、专注的工具，而非功能堆砌的'瑞士军刀'",
+        "confidence": "75%",
+        "validationMethod": "对比竞品下载量与评分，功能简洁者更受欢迎"
+      },
+      {
+        "id": "A-005",
+        "statement": "3秒内完成从打开到计数是可行的技术目标",
+        "confidence": "90%",
+        "validationMethod": "竞品性能基准测试"
+      }
+    ],
+    "risks": [
+      {
+        "risk": "大厂可能推出类似功能（如 Apple 原生加强计数器）",
+        "likelihood": "中",
+        "mitigation": "聚焦差异化：多设备同步、数据导出、社区模板"
+      },
+      {
+        "risk": "用户留存低 - 计数器是'用完即走'工具",
+        "likelihood": "高",
+        "mitigation": "增加习惯追踪、数据分析等'回访'功能"
+      },
+      {
+        "risk": "PWA 体验不如原生 App",
+        "likelihood": "中",
+        "mitigation": "关键体验路径采用原生实现，增值功能用 Web"
+      }
+    ]
+  },
+
+  "successCriteria": {
+    "mustHave": [
+      {
+        "criterion": "SC-001",
+        "description": "从打开应用到显示计数界面 < 1秒",
+        "measurementMethod": "Lighthouse 性能测试",
+        "threshold": "LCP < 1s"
+      },
+      {
+        "criterion": "SC-002",
+        "description": "支持至少 10 个独立计数器同时运行",
+        "measurementMethod": "功能测试",
+        "threshold": "10个计数器同时计数互不干扰"
+      },
+      {
+        "criterion": "SC-003",
+        "description": "计数器数据关闭应用后不丢失",
+        "measurementMethod": "手动测试 + 自动化测试",
+        "threshold": "本地存储数据持久化验证"
+      },
+      {
+        "criterion": "SC-004",
+        "description": "支持一键重置计数为 0",
+        "measurementMethod": "功能测试",
+        "threshold": "100% 可用"
+      },
+      {
+        "criterion": "SC-005",
+        "description": "支持计数器命名/标签",
+        "measurementMethod": "功能测试",
+        "threshold": "支持 emoji + 20字符文本"
+      }
+    ],
+    "shouldHave": [
+      {
+        "criterion": "SC-006",
+        "description": "支持长按计数器微调数值（+/-1）",
+        "measurementMethod": "功能测试"
+      },
+      {
+        "criterion": "SC-007",
+        "description": "支持数据导出（JSON/CSV）",
+        "measurementMethod": "功能测试"
+      },
+      {
+        "criterion": "SC-008",
+        "description": "支持深色模式",
+        "measurementMethod": "视觉测试"
+      }
+    ],
+    "niceToHave": [
+      {
+        "criterion": "SC-009",
+        "description": "支持 Apple Watch / 小组件",
+        "measurementMethod": "平台特性集成"
+      },
+      {
+        "criterion": "SC-010",
+        "description": "支持 iCloud / Google 账号同步",
+        "measurementMethod": "多设备测试"
+      },
+      {
+        "criterion": "SC-011",
+        "description": "支持计数历史统计图表",
+        "measurementMethod": "功能测试"
+      }
+    ],
+    "guardrails": [
+      {
+        "rule": "GR-001",
+        "description": "不收集用户隐私数据（无账号也能完整使用）",
+        "enforcement": "Privacy Policy 审计"
+      },
+      {
+        "rule": "GR-002",
+        "description": "不添加会导致启动时间 > 2秒 的第三方 SDK",
+        "enforcement": "性能监控"
+      },
+      {
+        "rule": "GR-003",
+        "description": "核心功能保持免费，避免付费墙阻断基本体验",
+        "enforcement": "商业模式评审"
+      },
+      {
+        "rule": "GR-004",
+        "description": "不添加会导致应用体积 > 10MB 的资源",
+        "enforcement": "构建产物检查"
+      }
+    ]
+  },
+
+  "scopeBoundaries": {
+    "inScope": [
+      "单 App 多计数器管理（核心价值）",
+      "一键创建/删除计数器",
+      "大按钮触控计数界面",
+      "计数器命名/标签",
+      "本地数据持久化",
+      "深色模式",
+      "数据导出（JSON/CSV）",
+      "Web 版本（PWA）"
+    ],
+    "outOfScope": [
+      "云端同步/账号系统（V2）",
+      "多人协作/分享功能（V2）",
+      "计数预测/AI 分析（V3）",
+      "原生插件开发（watchOS/Android Widget - V2）",
+      "后端服务/API",
+      "社交功能",
+      "广告系统"
+    ],
+    "minimumViableProduct": {
+      "mvpFeatures": [
+        "3秒内完成创建并开始计数",
+        "支持至少 10 个计数器",
+        "数据本地持久化",
+        "支持重置和删除"
+      ],
+      "excludedForNow": [
+        "账号系统",
+        "云同步",
+        "数据分析图表",
+        "多语言支持",
+        "小组件"
+      ]
+    }
+  },
+
+  "prototypeLearningPlan": {
+    "validationExperiments": [
+      {
+        "experiment": "Exp-001: 零配置计数器体验",
+        "hypothesis": "如果用户打开 App 后无需任何配置即可开始计数，那么用户完成首次计数的比率将 > 80%",
+        "testMethod": "A/B Test - 控制组：需先创建计数器；实验组：预置一个默认计数器",
+        "successMetric": "实验组首次计数完成率 > 控制组 30%",
+        "cost": "1天开发工作",
+        "priority": "P0"
+      },
+      {
+        "experiment": "Exp-002: 大触控区域 vs 多功能界面",
+        "hypothesis": "如果采用全屏大按钮设计（单计数器模式），用户满意度将高于多计数器网格布局",
+        "testMethod": "A/B Test - 两套 UI 方案各 50% 流量",
+        "successMetric": "大按钮方案 NPS > 50",
+        "cost": "2天开发工作",
+        "priority": "P0"
+      },
+      {
+        "experiment": "Exp-003: 本地存储持久化验证",
+        "hypothesis": "90% 的用户会在 7 天内重新打开 App 并期望数据仍在",
+        "testMethod": "灰度发布 10% 用户，监测数据留存率",
+        "successMetric": "7日留存计数器数据完整率 > 90%",
+        "cost": "1天开发 + 7天观测",
+        "priority": "P1"
+      }
+    ],
+    "prototypePlan": {
+      "phase1": {
+        "name": "纸面原型 + 概念验证",
+        "duration": "1天",
+        "deliverable": "手绘线框图 + 用户访谈 5 人",
+        "exitCriteria": "收集 3 个核心体验问题"
+      },
+      "phase2": {
+        "name": "可运行原型（ Prototype）",
+        "duration": "2-3天",
+        "deliverable": "Figma 交互原型 或 PWA MVP（单 HTML 文件）",
+        "exitCriteria": "10 名用户完成核心任务（创建→计数→重置）无阻碍"
+      },
+      "phase3": {
+        "name": "MVP 发布",
+        "duration": "5-7天",
+        "deliverable": "可上架的 PWA / React Native App",
+        "exitCriteria": "App Store / Google Play 审核通过，上线 100 用户"
+      },
+      "phase4": {
+        "name": "数据驱动迭代",
+        "duration": "持续",
+        "deliverable": "每周数据分析报告",
+        "exitCriteria": "周活跃用户 > 50，7日留存 > 30%"
+      }
+    },
+    "metricsToTrack": [
+      "首次打开到首次计数的完成率（目标 > 80%）",
+      "平均每会话计数次数",
+      "7日留存率",
+      "每个用户平均创建的计数器数量",
+      "App 启动时间（目标 < 1s）",
+      "崩溃率（目标 < 0.1%）",
+      "App Store / Google Play 评分（目标 > 4.5）"
+    ]
+  }
+}

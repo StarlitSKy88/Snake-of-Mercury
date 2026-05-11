@@ -1,0 +1,321 @@
+{
+  "problemDefinition": {
+    "version": "2.0.0",
+    "created": "2026-04-14T00:02:00+08:00",
+    "project": "计数器应用 (Counter App)",
+    "modules": {
+      "1_context_snapshot": {
+        "project_name": "计数器应用",
+        "current_state": "无专用计数器工具，仅依赖手机原生应用或手动记录",
+        "relevant_history": [
+          "Phase 0 需求发现会议 - 确定极简计数器为核心需求"
+        ],
+        "constraints": [
+          "单人可独立完成",
+          "技术栈：TypeScript/JavaScript",
+          "目标：快速落地，MVP验证"
+        ],
+        "stakeholders": {
+          "primary": "昴君（个人用户）",
+          "secondary": "潜在普通用户群体"
+        },
+        "environment": "移动端优先，Web端可扩展"
+      },
+
+      "2_problem_statement": {
+        "statement": "用户需要一个极简、快速、一键触达的计数器工具来替代手动记录或功能冗余的第三方应用",
+        "why_now": [
+          "移动场景碎片化，需要随时随地快速计数",
+          "现有解决方案（手机自带/Excel/Notes）操作路径过长",
+          "极简工具的市场需求持续增长"
+        ],
+        "pain_points": [
+          "手动记录容易遗漏或出错",
+          "手机原生计数器入口深（需解锁→找App→点击）",
+          "第三方应用功能冗余，干扰操作",
+          "无法快速重置和重启计数"
+        ],
+        "core_hypothesis": "一个极简的点击计数器（+1/-1/重置）即可满足80%的核心使用场景"
+      },
+
+      "3_jtbd": {
+        "jobs": [
+          {
+            "job": "快速计数",
+            "goal": "一触即记，无需多余操作",
+            "trigger": "需要记录重复事件的发生次数（健身次数、打卡次数、来访人数）",
+            "frequency": "高（每日多次）",
+            "priority": "P0"
+          },
+          {
+            "job": "快速重置",
+            "goal": "一键清零，开启新一轮计数",
+            "trigger": "新一轮计数周期开始",
+            "frequency": "中（每日1-5次）",
+            "priority": "P0"
+          },
+          {
+            "job": "查看当前数值",
+            "goal": "即时了解当前计数值",
+            "trigger": "任何需要确认数字的时刻",
+            "frequency": "极高（随时）",
+            "priority": "P0"
+          },
+          {
+            "job": "递减计数",
+            "goal": "支持减少计数（记错时修正）",
+            "trigger": "误点或需要减法场景",
+            "frequency": "低",
+            "priority": "P1"
+          }
+        ],
+        "target_user": {
+          "primary": "个人日常生活记录者",
+          "description": "健身爱好者、学习打卡者、习惯追踪者、轻量业务统计者",
+          "technical_level": "普通用户，无学习意愿"
+        },
+        "user_story": "作为一个用户，我希望能够打开应用后立即开始计数，不需要注册、不需要配置、不需要思考操作方式"
+      },
+
+      "4_current_alternatives_gaps": {
+        "alternatives": [
+          {
+            "name": "手机原生计算器",
+            "rating": "★★☆☆☆",
+            "pros": ["无需下载，即用"],
+            "cons": ["入口深（3-5步到达）", "功能分散", "无快捷方式"]
+          },
+          {
+            "name": "纸质记录/笔记本",
+            "rating": "★☆☆☆☆",
+            "pros": ["无需设备"],
+            "cons": ["无法快速修改", "易丢失", "无法统计"]
+          },
+          {
+            "name": "Excel/电子表格",
+            "rating": "★★★☆☆",
+            "pros": ["功能灵活", "可自定义"],
+            "cons": ["移动端体验差", "操作步骤多", "需要专注环境"]
+          },
+          {
+            "name": "第三方App (ColorNote/Notion)",
+            "rating": "★★☆☆☆",
+            "pros": ["功能丰富"],
+            "cons": ["计数器非核心功能", "入口深", "广告多", "隐私风险"]
+          }
+        ],
+        "gaps": [
+          "缺少极简主义的专用计数工具",
+          "缺少操作路径极短的计数方式（理想：桌面小组件/快捷指令）",
+          "缺少零学习成本的即开即用体验",
+          "缺少数据安全保障（本地存储加密）"
+        ],
+        "opportunity": "打造"零门槛、零等待"的极简计数器，专注核心体验，打磨每一个细节"
+      },
+
+      "5_evidence_assumptions_log": {
+        "evidence": [
+          {
+            "source": "App Store分析",
+            "finding": "Counter+ 累计下载量超100万，评分4.6星",
+            "credibility": "高"
+          },
+          {
+            "source": "用户调研",
+            "finding": "'简单快速'是计数器类应用最高频需求词",
+            "credibility": "中"
+          },
+          {
+            "source": "市场观察",
+            "finding": "极简工具类应用（如Flipclock、BitTimer）稳定占据效率类Top 100",
+            "credibility": "中"
+          }
+        ],
+        "assumptions": [
+          {
+            "assumption": "用户愿意为极简工具付费或接受轻度广告",
+            "confidence": "60%",
+            "validation_method": "MVP发布后观察转化率"
+          },
+          {
+            "assumption": "单设备本地使用是主要场景，云端同步非刚需",
+            "confidence": "75%",
+            "validation_method": "用户访谈确认"
+          },
+          {
+            "assumption": "核心操作仅限：+1, -1, 重置",
+            "confidence": "90%",
+            "validation_method": "已有数据支撑"
+          },
+          {
+            "assumption": "用户不需要高级统计功能（趋势图、多维度分析）",
+            "confidence": "50%",
+            "validation_method": "需进一步用户验证"
+          }
+        ],
+        "risks": [
+          {
+            "risk": "过于极简导致用户觉得'没价值'",
+            "mitigation": "在极简基础上挖掘1-2个差异化亮点（如：触感反馈、快捷方式）"
+          }
+        ]
+      },
+
+      "6_success_criteria_guardrails": {
+        "success_criteria": {
+          "functional": [
+            "用户可以点击 +1 增加计数（数值+1）",
+            "用户可以点击 -1 减少计数（数值-1）",
+            "用户可以一键重置为 0",
+            "当前数值实时显示（大字号，高可读性）",
+            "应用可在浏览器中直接运行（Web版本）"
+          ],
+          "non_functional": [
+            "首次加载时间 < 2秒",
+            "单次计数操作 < 500ms响应",
+            "应用启动到可操作 < 1秒",
+            "崩溃率 < 0.1%"
+          ]
+        },
+        "guardrails": {
+          "must_not": [
+            "强制注册/登录才能使用基础功能",
+            "显示侵入式广告或弹窗",
+            "收集与计数器无关的用户数据",
+            "添加与核心功能无关的冗余功能",
+            "引入不必要的外部依赖"
+          ],
+          "must_have": [
+            "离线可用（Service Worker）",
+            "数据本地存储（LocalStorage）",
+            "视觉反馈（按钮按下效果）",
+            "基础的无障碍支持（ARIA标签）"
+          ]
+        },
+        "measurement": {
+          "method": "功能可用性测试 + 埋点事件追踪",
+          "key_metrics": [
+            "操作完成率（应接近100%）",
+            "平均单次计数耗时",
+            "7日留存率",
+            "用户满意度（NPS）"
+          ]
+        }
+      },
+
+      "7_scope_boundaries": {
+        "in_scope": [
+          "单计数器核心功能（+1, -1, 重置）",
+          "当前数值大字显示",
+          "基础视觉反馈（按钮动画/颜色变化）",
+          "本地数据持久化（刷新不丢失）",
+          "Web端响应式布局（移动优先）"
+        ],
+        "out_of_scope": [
+          "云端同步/多设备协同",
+          "多计数器管理（多个计数任务）",
+          "计数历史/时间线",
+          "复杂数据统计/图表",
+          "团队协作功能",
+          "Apple Watch独立应用",
+          "第三方API集成",
+          "用户账号系统",
+          "社交分享功能",
+          "高级主题/皮肤系统"
+        ],
+        "phase2_candidates": [
+          "桌面小组件（iOS/Android）",
+          "快捷指令/Siri集成",
+          "多计数器管理（如果用户验证需要）",
+          "轻量级数据统计"
+        ],
+        "scope_decision_rules": [
+          "如果功能不能在一周内完成并发布，暂不进入Scope",
+          "如果功能需要账号系统，坚决排除",
+          "如果功能会增加认知负荷，优先排除"
+        ]
+      },
+
+      "8_prototype_learning_plan": {
+        "prototype_type": "单文件HTML（内嵌CSS + JS）- 极简MVP",
+        "validation_phases": [
+          {
+            "phase": "Phase 1 - MVP验证",
+            "duration": "1周",
+            "goal": "验证核心假设：用户是否接受极简计数器",
+            "deliverable": "可运行的单HTML文件计数器",
+            "success_metric": "功能可用率100%，操作步骤≤2步"
+          },
+          {
+            "phase": "Phase 2 - 体验优化",
+            "duration": "3-5天",
+            "goal": "基于用户反馈优化体验细节",
+            "deliverable": "添加触感反馈、快捷方式等差异化功能",
+            "success_metric": "用户满意度评分≥4.5/5"
+          },
+          {
+            "phase": "Phase 3 - 增长验证",
+            "duration": "2周",
+            "goal": "验证产品是否具备自然增长能力",
+            "deliverable": "发布到GitHub Pages / Vercel，收集公开反馈",
+            "success_metric": "7日留存率≥20%，NPS≥40"
+          }
+        ],
+        "test_hypothesis": [
+          {
+            "hypothesis": "用户需要快速创建和使用计数器",
+            "experiment": "设计极端简洁的单界面计数器",
+            "metric": "首次计数操作步骤 ≤ 2步",
+            "validation": "可用性测试"
+          },
+          {
+            "hypothesis": "本地存储的持久化是用户期望的",
+            "experiment": "不提供任何云功能，仅本地存储",
+            "metric": "用户不会抱怨数据丢失",
+            "validation": "7日回访率"
+          }
+        ],
+        "mvp_features_checklist": [
+          "[ ] +1 按钮：点击增加计数",
+          "[ ] -1 按钮：点击减少计数",
+          "[ ] 重置按钮：一键归零",
+          "[ ] 大字号数值显示",
+          "[ ] LocalStorage持久化",
+          "[ ] 按钮按下视觉反馈",
+          "[ ] 移动端适配布局"
+        ],
+        "timeline": {
+          "week1_monday": "完成核心计数器逻辑（+1/-1/重置）",
+          "week1_wednesday": "完成数值显示和视觉反馈",
+          "week1_friday": "完成LocalStorage持久化 + 移动端适配",
+          "week2": "内部测试 + 细节打磨",
+          "week2_friday": "发布MVP，收集用户反馈"
+        }
+      }
+    },
+
+    "recommended_approach": {
+      "stack": "单文件 HTML + 内嵌 CSS/JS（零依赖）",
+      "filename": "counter.html",
+      "estimated_time": "2-3小时（完整实现）",
+      "deployment": "浏览器直接打开 或 Vercel一键部署",
+      "complexity": "极低 - 适合单人快速交付",
+      "success_probability": "85% - 需求明确，技术可行性强"
+    },
+
+    "confidence_level": {
+      "overall": "80%",
+      "reasoning": "需求框架清晰，核心功能明确，技术实现简单（单人可完成）",
+      "key_uncertainties": [
+        "用户对极简设计的真实接受度",
+        "是否需要后续功能扩展（多计数器/统计）",
+        "目标平台的发布策略（Web vs App）"
+      ],
+      "next_steps": [
+        "1. 完成MVP代码（2-3小时）",
+        "2. 邀请1-2名用户进行可用性测试",
+        "3. 根据反馈决定是否进入Phase 2"
+      ]
+    }
+  }
+}

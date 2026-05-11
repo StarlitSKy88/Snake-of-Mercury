@@ -1,0 +1,88 @@
+{
+  "overview": "场景化计数器工具（Scenario-Specific Counter），为特定垂直场景提供专用计数体验。核心价值：速度（<1秒响应）+ 零认知负担（精确数字即时可读）。MVP聚焦单计数器核心操作（+1/-1/重置），不包含本地持久化（数据持久化为Sprint 2功能）。创新机制（游戏化/社交）后置到市场验证后。",
+  "featureList": {
+    "must": [
+      "计数增加（+1，支持可配置步长 ±1/±5/±10）",
+      "计数减少（-1，下限为0）",
+      "重置操作（一键归零）",
+      "大字体数值显示（高对比度，适配不同光线）",
+      "基本约束（上限999,999,999，下限0）",
+      "操作响应时间 <100ms"
+    ],
+    "should": [
+      "本地数据持久化（IndexedDB）",
+      "音效反馈（可关闭）",
+      "步长配置记忆",
+      "历史操作记录（最近30天）"
+    ],
+    "could": [
+      "多计数器管理（创建/切换/删除）",
+      "计数器命名",
+      "数据导出（CSV格式）",
+      "账号系统（云端同步）"
+    ]
+  },
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": ["实现核心计数器功能（纯内存版本）", "完成基本约束验证"],
+      "acceptanceCriteria": [
+        "计数器 +1/-1 操作正常",
+        "重置操作需用户确认",
+        "下限0不可突破，上限999,999,999",
+        "操作响应时间 <100ms",
+        "无JavaScript运行时错误",
+        "数值显示正确清晰"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": ["纯内存实现，不含本地存储", "使用localStorage只用于临时状态"]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": ["添加本地持久化", "完善用户体验"],
+      "acceptanceCriteria": [
+        "App重启后数据保留",
+        "步长配置可自定义并记忆",
+        "音效反馈可开关",
+        "历史记录可查看最近30天操作",
+        "UI适配不同屏幕尺寸"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": ["使用IndexedDB存储（非localStorage）", "数据结构需兼容未来云同步"]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": ["支持多计数器管理", "基础数据管理功能"],
+      "acceptanceCriteria": [
+        "可创建多个计数器",
+        "可切换不同计数器",
+        "可删除计数器",
+        "计数器名称可编辑",
+        "历史记录支持按计数器筛选"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": ["计数器ID需全局唯一", "切换时状态不丢失"]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": ["发布准备与收尾工作"],
+      "acceptanceCriteria": [
+        "完成README文档",
+        "完成基础功能测试（覆盖核心逻辑）",
+        "部署配置完成（Vercel/Netlify）",
+        "错误边界处理完善"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": ["无"]
+    }
+  ],
+  "technicalDirection": "Web平台优先（HTML+CSS+JS），移动端次之。Sprint 1使用纯内存实现，Sprint 2引入IndexedDB。暂不引入React/Vue等框架，保持轻量。数据模型设计需考虑未来云同步兼容性。",
+  "acceptanceStandards": [
+    "计数器操作响应时间 <100ms",
+    "测试覆盖核心逻辑（+1/-1/重置/约束）",
+    "Chrome/Firefox/Safari 最新版本兼容",
+    "数值显示在强光下可读",
+    "Sprint 1验证：目标用户7日内重复使用率 >30% 则进入Sprint 2",
+    "Sprint 2验证：本地持久化用户满意度 >80%"
+  ]
+}

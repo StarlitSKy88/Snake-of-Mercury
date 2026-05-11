@@ -1,0 +1,20 @@
+{
+  "verdict": "REJECTED",
+  "totalScore": 8.25,
+  "dimensionScores": {
+    "productDepth": 10,
+    "userExperience": 8.5,
+    "codeQuality": 5,
+    "security": 8
+  },
+  "issues": [
+    "**缺少测试文件**",
+    "**缺少 README.md**",
+    "**ThemeManager 样式管理**",
+    "**无错误恢复机制**"
+  ],
+  "evaluatorBiasWarnings": [
+    "[范围违规] productDepth 评分波动 3.5 分（6.5 → 10），超过 2 分阈值",
+    "[范围违规] userExperience 评分波动 3.0 分（5.5 → 8.5），超过 2 分阈值"
+  ]
+}

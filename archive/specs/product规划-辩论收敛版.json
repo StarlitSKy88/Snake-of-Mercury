@@ -1,0 +1,136 @@
+{
+  "overview": "垂直场景极致计数工具 - CountSnap\n\n聚焦健身计数、冥想圈计数等高频垂直场景，提供简单、快速、可靠的计数体验。核心价值：跨标签页数据同步 + 本地持久化 + 极致性能。差异化定位：不做通用计数器，做特定场景的计数利器。",
+
+  "featureList": {
+    "must": [
+      "计数器核心逻辑（+1/-1/Reset）",
+      "IndexedDB 数据持久化（替代 localStorage）",
+      "Broadcast Channel API 跨标签页同步",
+      "数值显示（当前计数值）",
+      "点击按钮操作（+1/-1/Reset）",
+      "负数支持"
+    ],
+    "should": [
+      "键盘快捷键支持（+ / - / R）",
+      "数值变化动画反馈",
+      "浅色/深色主题切换",
+      "计数值边界处理（防溢出）"
+    ],
+    "could": [
+      "音效反馈（操作提示音）",
+      "震动反馈（移动端）",
+      "最小化到托盘",
+      "历史计数记录（最近10条）"
+    ]
+  },
+
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "title": "核心功能实现",
+      "objectives": [
+        "实现计数器核心逻辑（+1/-1/Reset）",
+        "实现 IndexedDB 数据持久化",
+        "实现 Broadcast Channel 跨标签页同步",
+        "基础界面可运行"
+      ],
+      "acceptanceCriteria": [
+        "点击 +1 按钮，数值 +1",
+        "点击 -1 按钮，数值 -1",
+        "点击 Reset 按钮，数值归零",
+        "刷新页面后数值保持",
+        "打开多个标签页，数值同步更新",
+        "关闭浏览器后重新打开，数值保持"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "使用 IndexedDB 而非 localStorage",
+        "使用 Broadcast Channel API 实现跨标签页同步",
+        "无后端依赖，纯前端实现"
+      ],
+      "deliverable": "可运行的计数器原型，支持跨标签页同步"
+    },
+    {
+      "sprintNumber": 2,
+      "title": "用户体验优化",
+      "objectives": [
+        "添加键盘快捷键支持",
+        "添加数值变化动画",
+        "添加浅色/深色主题",
+        "完善边界值处理"
+      ],
+      "acceptanceCriteria": [
+        "键盘 + 键触发 +1",
+        "键盘 - 键触发 -1",
+        "键盘 R 键触发 Reset",
+        "数值变化有平滑过渡动画",
+        "支持主题切换",
+        "负数计数正常工作"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "保持 IndexedDB + Broadcast Channel 架构",
+        "动画使用 CSS transition 而非 JS 动画库"
+      ],
+      "deliverable": "体验完善的计数器应用"
+    },
+    {
+      "sprintNumber": 3,
+      "title": "高级功能与测试",
+      "objectives": [
+        "添加音效反馈",
+        "添加历史计数记录",
+        "完善移动端适配",
+        "补充单元测试"
+      ],
+      "acceptanceCriteria": [
+        "操作时有音效提示（可关闭）",
+        "可查看最近10条计数记录",
+        "移动端界面正常显示",
+        "核心功能测试覆盖率 80%+"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "音效使用 Web Audio API 或 Audio 标签",
+        "移动端优先的响应式布局"
+      ],
+      "deliverable": "功能丰富的计数器应用"
+    },
+    {
+      "sprintNumber": 4,
+      "title": "发布准备",
+      "objectives": [
+        "完善 README 文档",
+        "配置部署环境",
+        "浏览器兼容性验证",
+        "性能优化验证"
+      ],
+      "acceptanceCriteria": [
+        "README 包含完整使用说明",
+        "可部署到 Vercel/Netlify",
+        "Chrome、Firefox、Safari 最新版本测试通过",
+        "首屏加载 < 2秒",
+        "操作响应 < 100ms"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "保持零后端依赖",
+        "生产构建优化（代码分割、压缩）"
+      ],
+      "deliverable": "可发布的计数器应用"
+    }
+  ],
+
+  "technicalDirection": "轻量化纯前端实现\n\n【技术栈】\n- TypeScript + 原生 HTML/CSS/JS\n- IndexedDB（数据持久化）\n- Broadcast Channel API（跨标签页同步）\n- 单一 HTML 文件可运行\n\n【架构约束】\n- IndexedDB 替代 localStorage（解决跨标签页同步问题）\n- Broadcast Channel API 实现跨标签页实时同步\n- 无后端依赖，数据存储在浏览器本地\n- 单文件优先，核心功能可在单个 HTML 文件中运行\n\n【性能目标】\n- 操作响应 < 100ms\n- 首屏加载 < 2秒\n- 跨标签页同步延迟 < 50ms\n\n【平台目标】\n- Web 桌面优先\n- 移动端响应式适配",
+
+  "acceptanceStandards": [
+    "Sprint 1 交付物：计数器核心逻辑 + IndexedDB 持久化 + 跨标签页同步可正常工作",
+    "Sprint 2 交付物：键盘快捷键、动画、主题切换功能完整",
+    "Sprint 3 交付物：音效、历史记录功能可用，测试覆盖率 80%+",
+    "Sprint 4 交付物：文档完整，可部署，浏览器兼容性验证通过",
+    "性能标准：操作响应 < 100ms，首屏加载 < 2秒",
+    "跨标签页同步：多标签页打开时，任意标签页操作后其他标签页数值在 50ms 内同步",
+    "数据持久化：关闭浏览器后重新打开，计数值保持不变",
+    "负数支持：计数值可为负数，Reset 后归零"
+  ]
+}

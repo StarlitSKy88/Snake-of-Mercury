@@ -1,0 +1,229 @@
+{
+  "1_contextSnapshot": {
+    "projectName": "计数器应用",
+    "timestamp": "2026-04-15",
+    "projectType": "轻量级工具应用 / PWA",
+    "currentPhase": "Phase 0 - 需求发现",
+    "teamContext": "一人公司 (OPC)",
+    "techStack": ["TypeScript", "HTML/CSS", "JavaScript"],
+    "keyConstraints": [
+      "单人可独立完成开发",
+      "技术栈限定: Python/TypeScript/JavaScript",
+      "代码可直接运行，无需额外依赖安装"
+    ],
+    "currentState": "用户在日常生活中需要进行计数场景（健身次数、习惯打卡、会议计时等），目前使用手机原生计算器、纸张记录或脑算，缺乏统一快速的计数工具",
+    "technologyLandscape": "现代浏览器和 PWA 技术已成熟，TypeScript + 轻量级框架即可实现跨平台，无需复杂后端",
+    "marketTrend": "碎片化工作和习惯养成意识兴起，简单高效的计数工具需求增长；现有解决方案功能分散，缺乏统一体验"
+  },
+
+  "2_problemStatement": {
+    "problem": "用户需要一种快速、直观且可追溯的计数方式，但现有工具（计算器/手写/脑算）无法满足一键计数、历史回溯、多维度记录的需求",
+    "whyNow": [
+      "后疫情时代习惯养成和个人效率管理成为显性刚需",
+      "移动优先的轻量应用窗口期已打开",
+      "用户期望即开即用、无需注册",
+      "现有解决方案要么过于简单缺乏灵活性，要么过于复杂不实用"
+    ],
+    "painPoints": [
+      "手机计算器：需要手动输入数字，无法快捷键操作，无历史功能",
+      "纸张/Excel记录：操作繁琐，无法随时随地访问",
+      "脑算：易出错，无法回溯",
+      "专用 App（如 Habitica）：功能过于复杂，学习成本高"
+    ]
+  },
+
+  "3_jtbd": {
+    "targetUsers": [
+      "健身爱好者 - 追踪每日运动次数",
+      "习惯养成者 - 打卡记录",
+      "学生 - 番茄钟/学习计时",
+      "会议主持人 - 计数/计时",
+      "自由职业者 - 时间管理",
+      "家长 - 孩子行为奖励计数"
+    ],
+    "jobsToBeDone": [
+      {
+        "job": "一键完成计数，期望 < 1 秒完成操作",
+        "priority": "critical",
+        "successMetric": "操作步骤 ≤ 2 步"
+      },
+      {
+        "job": "查看计数历史，验证习惯坚持情况",
+        "priority": "high",
+        "successMetric": "可查看最近 N 条记录"
+      },
+      {
+        "job": "创建多个计数器（区分不同习惯/活动）",
+        "priority": "medium",
+        "successMetric": "支持多计数器管理"
+      },
+      {
+        "job": "在计数时添加简单标注（可选）",
+        "priority": "low",
+        "successMetric": "支持添加备注"
+      }
+    ],
+    "userStory": "作为一个 [目标用户]，我想要 [一键快速计数]，以便 [追踪我的目标进度]，并且能够 [随时查看历史和重置]"
+  },
+
+  "4_currentAlternativesAndGaps": {
+    "existingSolutions": [
+      {
+        "name": "手机原生计算器",
+        "pros": ["无需下载安装", "随时可用"],
+        "cons": ["无法持久化数据", "重启后数值丢失", "缺乏快捷操作"]
+      },
+      {
+        "name": "纸张/Excel记录",
+        "pros": ["数据可持久化", "可自定义"],
+        "cons": ["操作繁琐", "无法随时随地访问", "启动慢"]
+      },
+      {
+        "name": "脑算",
+        "pros": ["无需工具"],
+        "cons": ["易出错", "无法回溯", "数值易忘"]
+      },
+      {
+        "name": "专用 App (Habitica/Loop Habit)",
+        "pros": ["专为计数/习惯设计"],
+        "cons": ["功能过于复杂", "学习成本高", "大多有广告", "需要安装"]
+      }
+    ],
+    "gaps": [
+      "启动速度：需 < 2 秒即可开始计数",
+      "操作效率：单手操作，一键完成",
+      "数据可携带性：无需注册，数据本地存储或可导出",
+      "视觉反馈：清晰的视觉/触觉反馈确认计数成功",
+      "无广告干扰的轻量解决方案"
+    ],
+    "opportunityStatement": "提供一个操作步骤 ≤ 2 的极简计数器，5 秒内可开始计数，数据本地存储且可导出"
+  },
+
+  "5_evidenceAndAssumptionsLog": {
+    "evidence": [
+      "App Store 上计数器类应用平均评分 4.2/5，说明需求真实存在",
+      "番茄工作法应用（Pomodone, Focus Keeper）持续畅销，证明计时计数类工具有市场",
+      "习惯打卡类 App 长期占据效率类应用榜单"
+    ],
+    "assumptions": [
+      {
+        "assumption": "用户愿意为极简工具放弃高级功能",
+        "confidence": "medium",
+        "validationMethod": "发布 Web 版本观察访问留存"
+      },
+      {
+        "assumption": "本地存储足以覆盖 90% 用户需求（无需云同步）",
+        "confidence": "high",
+        "validationMethod": "用户调研确认云同步需求"
+      },
+      {
+        "assumption": "单计数器场景是最主要使用形态",
+        "confidence": "medium",
+        "validationMethod": "V1 仅做单计数器，收集反馈后再加多计数器"
+      }
+    ],
+    "riskiestAssumption": "用户是否真的愿意下载独立 App 而不是用计算器？需要 MVP 验证核心假设"
+  },
+
+  "6_successCriteriaAndGuardrails": {
+    "successMetrics": {
+      "primary": "用户完成首次计数的时间 < 2 秒",
+      "secondary": "单次计数操作步骤 ≤ 2 步",
+      "tertiary": "用户次日留存率 > 30%（周留存 > 15%）"
+    },
+    "guardrails": [
+      "不收集任何用户数据（隐私优先）",
+      "不显示广告，保证工具纯粹性",
+      "不强制登录/注册",
+      "不支持复杂社交/成就系统，保持极简",
+      "计数上限设为 999,999,999 防溢出"
+    ],
+    "northStarMetric": "用户完成「计数 → 重置」完整闭环的次数",
+    "primaryKPIs": [
+      "日活跃用户数 (DAU)",
+      "单用户平均计数次数",
+      "次周留存率"
+    ]
+  },
+
+  "7_scopeBoundaries": {
+    "inScope": [
+      "计数器创建/删除/重命名",
+      "一键递增/递减计数",
+      "计数历史记录（最近 100 条）",
+      "数据本地持久化（localStorage）",
+      "PWA 支持（可添加到主屏幕）",
+      "深色/浅色主题切换",
+      "数据导出功能（JSON）"
+    ],
+    "outOfScope": [
+      "云同步/用户账号系统",
+      "数据分析/图表统计",
+      "社交分享功能",
+      "提醒/通知功能",
+      "多人协作",
+      "国际化/多语言",
+      "Apple Watch / 安卓手表适配",
+      "主题自定义（v1.0）"
+    ],
+    "niceToHave": [
+      "自定义计数步长（不只是 ±1）",
+      "音效反馈",
+      "目标进度条",
+      "快捷键支持"
+    ],
+    "v1Milestone": "MVP - 单计数器 + 本地持久化 + 数据导出 + PWA 支持"
+  },
+
+  "8_prototypeAndLearningPlan": {
+    "prototypeType": "可交互 HTML/Tailwind 单页原型 + Figma 设计稿",
+    "learningPlan": [
+      {
+        "phase": "Week 1 - MVP 发布",
+        "goal": "发布 MVP（单计数器 + 增减操作 + 本地存储）",
+        "deliverables": [
+          "单 HTML 文件计数器原型",
+          "点击 +1/-1 按钮完成计数",
+          "数值存储在 localStorage",
+          "发布到 Vercel/Netlify"
+        ],
+        "successMetric": "完成核心计数流程 < 5 分钟",
+        "duration": "1 天"
+      },
+      {
+        "phase": "Week 2 - 多计数器 + 历史",
+        "goal": "添加多计数器支持 + 历史查看",
+        "deliverables": [
+          "多计数器管理界面",
+          "历史记录功能（最近 100 条）",
+          "数据导出（JSON）"
+        ],
+        "successMetric": "用户创建第 2 个计数器的比例 > 40%",
+        "duration": "2-3 天"
+      },
+      {
+        "phase": "Week 3-4 - PWA 适配",
+        "goal": "PWA 适配 + 主题切换",
+        "deliverables": [
+          "PWA 支持（可添加到主屏幕）",
+          "深色/浅色主题切换",
+          "生成短链接便于分享"
+        ],
+        "successMetric": "添加到主屏的用户比例 > 20%",
+        "duration": "1-2 天"
+      }
+    ],
+    "goNoGoCriteria": "Week 1 MVP 发布后，若首周活跃用户 < 100 人，需重新审视产品定位或终止项目",
+    "learningObjectives": [
+      "验证计数器工具的刚需程度",
+      "了解用户真实使用场景",
+      "验证轻量无广告模式的可行性",
+      "探索变现可能性（付费功能/捐赠）"
+    ],
+    "decisionPoints": [
+      "是否需要多计数器管理？",
+      "是否需要云同步？",
+      "是否需要数据导入？"
+    ]
+  }
+}

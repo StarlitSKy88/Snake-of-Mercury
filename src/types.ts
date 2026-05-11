@@ -221,7 +221,8 @@ export interface HarnessConfig {
   requirement: string;
   projectDir: string;
   maxIterations: number;
-  model?: 'sonnet' | 'opus';
+  model?: string;
+  engine?: 'claude' | 'codex';
   autoDeploy?: boolean;
 }
 

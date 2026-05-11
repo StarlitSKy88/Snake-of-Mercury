@@ -1,0 +1,128 @@
+{
+  "overview": "Simple Counter App - 零认知负荷的计数器。核心价值：去情境化抽象（计数操作不是需求，真正的问题是「为什么要计数、观察什么变化」）。产品基因：零心智负担、一键完成、永不丢失。技术约束：TypeScript 单页应用，LocalStorage 持久化，无需后端。",
+
+  "featureList": {
+    "must": [
+      "单页面计数器界面（+1/-1 大按钮）",
+      "当前计数显示（大字号、可读性强）",
+      "Reset 按钮（带确认防误触）",
+      "LocalStorage 自动持久化（每次变更即时保存）",
+      "移动端适配（触摸优化、无缩放、无滚动）",
+      "响应式布局（移动端优先，桌面端可用）"
+    ],
+    "should": [
+      "视觉反馈（按钮按下效果、计数变化动画）",
+      "键盘支持（桌面端 +/=/- 快捷键）",
+      "数据导出/导入（JSON 格式，防止 LocalStorage 被清除）",
+      "Vercel 部署配置"
+    ],
+    "could": [
+      "多计数器支持（命名、切换）",
+      "计数历史（撤销功能）",
+      "深色模式",
+      "自定义步进值（+5/-5 等）",
+      "计数完成提醒（达到目标时）",
+      "PWA 离线支持"
+    ]
+  },
+
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": [
+        "实现核心计数器功能（+1/-1/Reset）",
+        "搭建项目结构（TypeScript + Vite）",
+        "完成基础 LocalStorage 持久化",
+        "移动端基础适配"
+      ],
+      "acceptanceCriteria": [
+        "用户可一键 +1/-1",
+        "Reset 有确认对话框",
+        "刷新页面后计数不丢失",
+        "iOS Safari 和 Android Chrome 正常显示",
+        "无控制台错误"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "单 HTML 文件（或极简构建）",
+        "无外部运行时依赖",
+        "状态不可变更新"
+      ]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": [
+        "完善触摸体验（无缩放、无抖动）",
+        "视觉反馈优化（按钮状态、计数动画）",
+        "键盘快捷键支持（桌面端）",
+        "数据导出/导入功能"
+      ],
+      "acceptanceCriteria": [
+        "移动端点击无缩放（touch-action: manipulation）",
+        "+1/-1 按钮有即时视觉反馈",
+        "桌面端支持 +/-/R 键盘快捷键",
+        "可导出当前计数为 JSON",
+        "可从 JSON 导入恢复计数"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "触摸事件正确处理（preventDefault 防止双击缩放）",
+        "动画使用 CSS 而非 JS（性能优先）",
+        "导出文件名为 counter-backup-{timestamp}.json"
+      ]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": [
+        "多计数器支持（核心用户调研反馈）",
+        "计数器命名与切换",
+        "Vercel 部署与监控",
+        "基础使用分析（Plausible Analytics）"
+      ],
+      "acceptanceCriteria": [
+        "用户可创建、命名、切换多个计数器",
+        "所有计数器独立持久化",
+        "部署到 Vercel 并验证可用性",
+        "页面加载 < 1s（3G 网络）",
+        "加入隐私友好的访问统计"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "多计数器数据存储在 LocalStorage 的单个 key 下（counter_app_data）",
+        "部署配置 vercel.json",
+        "Analytics 需 GDPR 合规（无 Cookie）"
+      ]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": [
+        "文档完善（README + 使用说明）",
+        "GitHub Repo 整理",
+        "发布准备（域名绑定、SEO）",
+        "收集用户反馈渠道"
+      ],
+      "acceptanceCriteria": [
+        "README 包含：功能说明、快速开始、架构图",
+        "GitHub Pages / Vercel 部署地址可用",
+        "Meta 标签完整（SEO + 社交分享）",
+        "页脚包含反馈入口（可选：内置反馈表单）"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "README 使用 Markdown，格式清晰",
+        "无敏感信息泄露",
+        "部署后手动测试关键流程"
+      ]
+    }
+  ],
+
+  "technicalDirection": "TypeScript + Vite 构建（可选纯 HTML）。单页应用，零后端依赖。状态管理：不可变更新 + LocalStorage 持久化。样式：极简 CSS（不超过 200 行）。动画：CSS transition。部署：Vercel（默认）或 GitHub Pages。字体：系统字体栈（无外部字体加载）。无外部运行时依赖。",
+
+  "acceptanceStandards": [
+    "Sprint 1: 核心计数器可运行，+1/-1/Reset 工作正常，刷新不丢数据",
+    "Sprint 2: 触摸体验无明显问题，键盘快捷键工作，导出/导入功能正常",
+    "Sprint 3: 多计数器切换正常，Vercel 部署成功，加载时间 < 1s",
+    "Sprint 4: 文档完整，SEO 友好，可分享链接",
+    "所有 Sprint: 无控制台错误，移动端测试通过"
+  ]
+}

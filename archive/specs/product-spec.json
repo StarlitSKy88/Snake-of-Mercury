@@ -1,0 +1,90 @@
+{
+  "overview": "个人行为追踪工具，聚焦健身计数场景（俯卧撑、深蹲、引体向上等日常行为）。产品核心价值：为低价值但需持续追踪的日常行为提供简洁可靠的计数体验。MVP聚焦单计数器核心功能（+1/-1/重置），逐步扩展多计数器管理和云端同步能力。垂直场景聚焦，不追求万物皆可数的宏大愿景。",
+  "featureList": {
+    "must": [
+      "单计数器：+1/-1/重置操作",
+      "当前值和目标值显示",
+      "本地存储数据持久化（刷新不丢失）",
+      "简洁单屏交互界面",
+      "最小值/最大值边界限制"
+    ],
+    "should": [
+      "步长配置（支持 ±1/±5/±10）",
+      "历史操作日志（最近7天）",
+      "多计数器管理（创建/切换/删除）",
+      "计数器命名"
+    ],
+    "could": [
+      "账号注册/登录",
+      "单设备云端数据同步",
+      "离线模式支持",
+      "数据导出（CSV格式）",
+      "自定义统计周期",
+      "多维度筛选"
+    ]
+  },
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": ["实现核心计数器功能", "完成本地数据持久化"],
+      "acceptanceCriteria": [
+        "计数器 +1/-1/重置 操作正常",
+        "刷新页面后数据不丢失",
+        "无JavaScript错误",
+        "数值显示正确",
+        "目标值显示正常",
+        "边界限制生效（最小值/最大值）"
+      ],
+      "estimatedDuration": "1-2天",
+      "technicalConstraints": ["使用localStorage存储", "数据结构需与后续Sprint兼容"]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": ["完善用户体验", "支持多计数器"],
+      "acceptanceCriteria": [
+        "可创建多个计数器",
+        "可在计数器之间切换",
+        "可删除计数器",
+        "历史记录显示最近7天操作",
+        "步长配置生效（±1/±5/±10）",
+        "计数器名称可编辑"
+      ],
+      "estimatedDuration": "1周",
+      "technicalConstraints": ["数据结构需与Phase 3兼容"]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": ["实现云端基础能力"],
+      "acceptanceCriteria": [
+        "用户可注册账号",
+        "用户可登录/登出",
+        "数据可上传到服务器",
+        "重新登录后可下载数据",
+        "离线操作恢复后能同步"
+      ],
+      "estimatedDuration": "1周",
+      "technicalConstraints": ["REST API设计"]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": ["发布准备与高级功能"],
+      "acceptanceCriteria": [
+        "数据导出功能可用（CSV）",
+        "多设备同步冲突处理（Last-Write-Wins）",
+        "完成README文档",
+        "部署配置完成（Vercel/Netlify）"
+      ],
+      "estimatedDuration": "1周",
+      "technicalConstraints": []
+    }
+  ],
+  "technicalDirection": "Web平台优先，移动端次之。前端使用React框架。数据存储Phase 1使用localStorage，Phase 2迁移到IndexedDB支持结构化查询，Phase 3使用PostgreSQL。后端使用Node.js + Express提供REST API。",
+  "acceptanceStandards": [
+    "计数器操作响应时间 < 200ms",
+    "测试覆盖率 > 70%",
+    "Chrome/Firefox/Safari 最新版本兼容",
+    "Sprint 1验证：7日留存率 > 15% 继续，< 10% Pivot至垂直场景",
+    "Sprint 2验证：用户主动创建多计数器比例 > 30%",
+    "Sprint 3验证：云端同步用户比例 > 50%"
+  ]
+}

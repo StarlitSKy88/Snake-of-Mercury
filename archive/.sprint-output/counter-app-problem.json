@@ -1,0 +1,226 @@
+{
+  "problemDefinition": {
+    "module1_contextSnapshot": {
+      "projectName": "Simple Counter App",
+      "timestamp": "2026-04-12",
+      "projectType": "Minimal Viable Product - Utility App",
+      "targetPlatform": "Web (Responsive)",
+      "techStack": {
+        "frontend": "Vanilla TypeScript or React",
+        "deployment": "Vercel / Static Hosting"
+      },
+      "projectState": "Greenfield - No existing codebase",
+      "teamSize": "1 developer (OPC)",
+      "budget": "Minimal (free tier eligible)"
+    },
+
+    "module2_problemStatement": {
+      "coreProblem": "Users need a fast, distraction-free way to count things without opening a spreadsheet or notes app.",
+      "whyNow": [
+        "Mobile-native counting requires heavy apps (Excel, Notes)",
+        "Browser tabs get cluttered with temporary counting tasks",
+        "No-app-install solution reduces friction for occasional use"
+      ],
+      "painPoints": [
+        "Overkill apps for simple counting tasks",
+        "Lost context when switching between apps",
+        "Manual tracking in spreadsheets is error-prone"
+      ],
+      "hypothesis": "A single-purpose, zero-friction counter web app will capture users who need quick tallying without the overhead of general-purpose tools."
+    },
+
+    "module3_jtbd": {
+      "jobsToBeDone": [
+        {
+          "jtbd": "As a user, I want to increment/decrement a count with one tap, so I don't waste time navigating menus.",
+          "trigger": "Physical inventory count, habit tracking, event attendance, quick surveys",
+          "frequency": "Low-to-medium (occasional but recurring)"
+        },
+        {
+          "jtbd": "As a user, I want to reset the counter to zero, so I can start a fresh count without app switching.",
+          "trigger": "Switching between counting tasks",
+          "frequency": "Medium"
+        },
+        {
+          "jtbd": "As a user, I want my count to persist across page reloads, so I don't lose data accidentally.",
+          "trigger": "Accidental page refresh or closure",
+          "frequency": "Low but critical"
+        }
+      ],
+      "targetAudience": [
+        "Warehouse workers doing physical inventory",
+        "Event organizers tracking attendance",
+        "Researchers doing quick field tallies",
+        "Individuals tracking habits or daily counts"
+      ],
+      "userArchetype": "Task-oriented user who needs speed over features, values simplicity over customization."
+    },
+
+    "module4_currentAlternativesAndGaps": {
+      "alternatives": [
+        {
+          "name": "Native smartphone calculator apps",
+          "gap": "Increment/decrement not optimized; requires keyboard input"
+        },
+        {
+          "name": "Google Sheets / Excel",
+          "gap": "Heavy overhead; requires account login; slow to open"
+        },
+        {
+          "name": "Notes app with manual entry",
+          "gap": "No one-tap increment; error-prone manual updates"
+        },
+        {
+          "name": "Dedicated counting apps (App Store)",
+          "gap": "Requires installation; often has ads or subscriptions"
+        },
+        {
+          "name": "Physical tally counter (mechanical)",
+          "gap": "No persistence; no undo; can lose count on error"
+        }
+      ],
+      "gapAnalysis": "The market lacks a free, install-free, zero-friction counter that works immediately in any browser with instant tap-response and local persistence.",
+      "competitiveEdge": "Zero install + one-tap + auto-save = always-ready, never-lost counting."
+    },
+
+    "module5_evidenceAndAssumptions": {
+      "evidence": [
+        "Tally counter apps have millions of downloads (e.g., 'Tally Counter' 5M+ downloads on Play Store)",
+        "Reddit threads asking for 'simple web-based counter' have engagement",
+        "GitHub has numerous counter app repos with minimal features but high star counts"
+      ],
+      "assumptions": [
+        "Assumption: Users will prefer tap over keyboard input — Confidence: HIGH (proven by mobile UX patterns)",
+        "Assumption: LocalStorage persistence is sufficient — Confidence: MEDIUM (no multi-device sync needed for MVP)",
+        "Assumption: Single counter is enough for MVP — Confidence: MEDIUM (multi-counter can be v2)",
+        "Assumption: No authentication required — Confidence: HIGH (counter data is disposable by nature)"
+      ],
+      "risks": [
+        "Risk: Browser LocalStorage can be cleared — Mitigation: Add export/import JSON feature",
+        "Risk: Users may want multi-counter support — Mitigation: Scope to single counter for MVP, gather feedback"
+      ]
+    },
+
+    "module6_successCriteriaAndGuardrails": {
+      "successMetrics": {
+        "primary": [
+          "Load time < 1 second on 3G",
+          "Tap-to-response < 50ms (local, no network round-trip)",
+          "Zero console errors on load",
+          "Functional on mobile Safari, Chrome, Firefox"
+        ],
+        "secondary": [
+          "One-tap increment works without focus/zoom issues on mobile",
+          "Counter persists across refresh",
+          "Reset confirms before clearing (accident prevention)"
+        ]
+      },
+      "guardrails": {
+        "inScope": [
+          "Single counter with increment/decrement/reset",
+          "LocalStorage persistence",
+          "Mobile-responsive design",
+          "No account / no backend / no analytics"
+        ],
+        "outOfScope": [
+          "Multi-counter support",
+          "Cloud sync",
+          "User authentication",
+          "Offline PWA install",
+          "Share/copy count to clipboard",
+          "Custom increment step (e.g., +5)",
+          "Dark mode / themes"
+        ]
+      },
+      "definitionOfDone": [
+        "User can increment count with single tap",
+        "User can decrement count with single tap",
+        "User can reset count to zero with confirmation",
+        "Count survives page reload",
+        "Works on iOS Safari and Android Chrome",
+        "No external dependencies at runtime (pure static)"
+      ]
+    },
+
+    "module7_scopeBoundaries": {
+      "inScope": {
+        "features": [
+          "Large tap target for +1 button",
+          "Large tap target for -1 button",
+          "Reset button with confirmation dialog",
+          "Current count display (large, readable number)",
+          "LocalStorage auto-save on every change"
+        ],
+        "pages": [
+          "Single page: counter interface only"
+        ],
+        "platforms": [
+          "Modern browsers (Chrome, Firefox, Safari, Edge - last 2 versions)",
+          "Mobile-first, responsive to desktop"
+        ]
+      },
+      "outOfScope": {
+        "features": [
+          "History / undo of individual increments",
+          "Multiple named counters",
+          "Cloud backup / sync",
+          "Keyboard shortcuts (mobile-first)",
+          "Haptic feedback",
+          "Share functionality",
+          "Custom styling / themes"
+        ],
+        "technical": [
+          "Backend server",
+          "Database",
+          "User accounts",
+          "Analytics tracking",
+          "PWA service worker",
+          "Push notifications"
+        ]
+      },
+      "niceToHaveV2": [
+        "Multiple counters with names",
+        "Export/import as JSON",
+        "Increment by custom step",
+        "Count-down timer mode"
+      ]
+    },
+
+    "module8_prototypeAndLearningPlan": {
+      "prototypePlan": {
+        "phase1_build": {
+          "duration": "1-2 hours",
+          "deliverable": "Single HTML file with embedded CSS/JS, counter UI, LocalStorage",
+          "successCriteria": "Manual test: increment, decrement, reset, refresh - all work"
+        },
+        "phase2_refine": {
+          "duration": "30 minutes",
+          "deliverable": "Polish tap targets, visual feedback on tap, mobile viewport meta",
+          "successCriteria": "Test on iOS Safari - no zoom, no scroll, immediate response"
+        },
+        "phase3_deploy": {
+          "duration": "15 minutes",
+          "deliverable": "Deployed to Vercel or GitHub Pages",
+          "successCriteria": "Accessible via public URL, fast load"
+        }
+      },
+      "learningValidation": [
+        {
+          "question": "Do users actually open a browser for counting tasks?",
+          "method": "Track if deployed URL gets repeat visits (simple)",
+          "kpi": "Return visitor rate > 20% within first month"
+        },
+        {
+          "question": "Is single counter sufficient or do users want multi-counter?",
+          "method": "Add optional 'email feedback' link, ask one question",
+          "kpi": "< 5% feedback asking for multi-counter = single is enough"
+        }
+      ],
+      "launchStrategy": {
+        "mvpLaunch": "Deploy as single static URL, share in relevant communities (Reddit, indie hacker)",
+        "measure": "Simple analytics (Plausible/Fathom - privacy-first, free)",
+        "iterate": "Gather feedback, add multi-counter in v2 if demanded"
+      }
+    }
+  }
+}

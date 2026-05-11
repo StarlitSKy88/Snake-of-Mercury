@@ -1,0 +1,136 @@
+{
+  "overview": "垂直场景极致计数工具 - 需求澄清驱动型开发\n\n本产品定位为「人的延伸工具」：用户主动计数，工具被动且准确地记录。\n\n【核心原则】\n- 需求澄清先于开发规划：沙滩上盖房子是无效的\n- 分阶段验证假设：做出来 ≠ 做好 ≠ 用户愿意持续使用\n- 商业价值优先于功能数量：通用型计数器无竞争壁垒\n\n【约束边界】\n- 技术实现难度不高，难在「做好」和「让用户持续使用」\n- 广告变现路径不适合工具类应用（用完即走特性冲突）\n- localStorage有局限，持久化方案需按需选择",
+  "featureList": {
+    "must": [
+      "计数显示（当前数值清晰可见）",
+      "+1 按钮（增加计数）",
+      "-1 按钮（减少计数）",
+      "Reset 按钮（归零）",
+      "数值变化时的视觉反馈"
+    ],
+    "should": [
+      "键盘快捷键支持（+键/-键/r键）",
+      "深色模式适配（跟随系统主题）",
+      "操作响应时间 < 100ms",
+      "数据持久化（基于验证后决定存储方案）"
+    ],
+    "could": [
+      "多计数器支持（仅当垂直场景需要时）",
+      "计数历史记录（仅当用户问「能查历史吗」时启用）",
+      "自定义增量（+5/+10等，仅当用户明确需要时）"
+    ]
+  },
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "title": "核心交互验证",
+      "objectives": [
+        "实现核心计数功能（+1/-1/Reset/显示）",
+        "验证操作是否直观可用",
+        "收集用户反馈：下次打开还在吗？需要存数据吗？"
+      ],
+      "acceptanceCriteria": [
+        "5个测试用户在无指导情况下，3分钟内完成10次计数操作，无操作错误",
+        "页面加载时间 < 2秒",
+        "计数操作响应时间 < 100ms",
+        "崩溃率 = 0%"
+      ],
+      "estimatedDuration": "2-3小时（置信区间±50%）",
+      "technicalConstraints": [
+        "单HTML文件可运行",
+        "无后端依赖",
+        "无账号系统",
+        "无数据持久化（除非用户明确要求）"
+      ],
+      "deliverable": "可演示的计数器原型，用于用户测试",
+      "verificationFocus": "回答「用户是否愿意再次打开App」这一核心假设"
+    },
+    {
+      "sprintNumber": 2,
+      "title": "需求澄清与方向确认",
+      "objectives": [
+        "基于Sprint 1用户反馈，明确真实需求",
+        "确定垂直场景方向（如果有的话）",
+        "确定数据持久化方案"
+      ],
+      "acceptanceCriteria": [
+        "输出用户访谈报告",
+        "明确回答：用户需要持久化吗？需要什么级别的持久化？",
+        "确定1-2个垂直场景方向（或确认通用型无竞争力后转向）"
+      ],
+      "estimatedDuration": "1-2小时（验证）+ 不限（需求澄清讨论）",
+      "technicalConstraints": [
+        "如需要持久化：localStorage作为首选（但需承认其局限）",
+        "如需要更高可靠性：考虑IndexedDB或文件导出"
+      ],
+      "deliverable": "Sprint 1验证报告 + Sprint 2方向决策文档",
+      "note": "Sprint 2规划严格基于Sprint 1实际数据，杜绝预设假设"
+    },
+    {
+      "sprintNumber": 3,
+      "title": "差异化功能开发",
+      "objectives": [
+        "基于验证的垂直场景开发差异化功能",
+        "核心功能打磨（性能、体验）"
+      ],
+      "acceptanceCriteria": [
+        "差异化功能完成且可用",
+        "核心功能无明显bug",
+        "如引入新功能，必须有对应的用户需求验证"
+      ],
+      "estimatedDuration": "待定（取决于Sprint 2结论）",
+      "technicalConstraints": [],
+      "deliverable": "差异化功能原型",
+      "note": "具体功能和验收标准在Sprint 2结论后制定"
+    },
+    {
+      "sprintNumber": 4,
+      "title": "发布准备",
+      "objectives": [
+        "完善使用文档",
+        "配置npm开发环境",
+        "浏览器兼容性验证"
+      ],
+      "acceptanceCriteria": [
+        "README包含完整使用说明",
+        "npm install后可本地运行",
+        "Chrome、Firefox、Safari最新版本测试通过",
+        "首屏加载 < 1秒"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "保持零外部运行时依赖（生产环境）"
+      ],
+      "deliverable": "可发布的计数器应用"
+    }
+  ],
+  "technicalDirection": "轻量化Web原型\n\n【技术栈】\n- TypeScript（类型安全）\n- 原生DOM API（无框架依赖）\n- localStorage/IndexedDB（仅当用户验证需要持久化后启用）\n- Vitest（单元测试）\n\n【架构原则】\n- 单文件优先：核心功能在单个HTML文件中可运行\n- 零外部依赖：Sprint 1不引入任何npm包\n- 数据自包含：无后端，无账号系统\n\n【持久化方案选择】\n- localStorage：5MB限制，适合简单数据\n- IndexedDB：更大存储，适合复杂数据\n- 文件导出：最高可靠性，适合关键数据\n- 决策原则：用户验证需要什么，就用什么",
+  "acceptanceStandards": [
+    "Sprint 1交付物可在浏览器中直接打开使用，无需构建或安装",
+    "Sprint 1核心功能（+1/-1/Reset/显示）必须完成",
+    "每个Sprint结束时有可演示的可用版本",
+    "Sprint 1结束后必须输出用户测试报告",
+    "Sprint 2规划必须基于Sprint 1的实际验证数据，而非预设假设",
+    "所有功能变更需要先有测试，再有实现（TDD原则）",
+    "发布前需要在Chrome、Firefox、Safari最新版本验证无报错",
+    "【假设声明】技术原型阶段的功能规划均为待验证假设，实际功能需用户测试确认"
+  ],
+  "riskControls": {
+    "scopeCreep": {
+      "description": "Sprint 1范围蔓延风险",
+      "mitigation": "Sprint 1结束前进行「范围冻结评审」，任何新增功能必须证明是验证结论的直接推论"
+    },
+    "estimationOptimism": {
+      "description": "技术估算过度乐观",
+      "mitigation": "时间估算标注「置信区间±50%」，预留20%缓冲时间"
+    },
+    "businessAssumption": {
+      "description": "商业模式未经验证",
+      "mitigation": "Sprint 1用户访谈必须包含付费意愿试探"
+    },
+    "persistenceOverengineering": {
+      "description": "过早引入持久化方案",
+      "mitigation": "Sprint 1不包含任何持久化，除非用户明确问「下次还在吗」"
+    }
+  }
+}

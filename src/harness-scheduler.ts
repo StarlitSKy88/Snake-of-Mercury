@@ -4,7 +4,12 @@
  * 实现 Phase 0→1→2→3→0 的完全自动化闭环循环
  */
 
-import { spawn } from 'child_process';
+import { executeAgent, detectAvailableEngines, type AgentEngine } from "./utils/agent-executor.js";
+import { EventBus } from "./event-bus.js";
+import { RalphWiggumLoop } from "./ralph-loop.js";
+import { CEOAgent } from "./ceo-agent.js";
+import { DevOpsAgent } from "./devops-agent.js";
+import { MarketingAgent } from "./marketing-agent.js";
 import { existsSync } from 'fs';
 import { join } from 'path';
 
@@ -30,6 +35,10 @@ import {
 import {
   executeHubDebate
 } from './integrations/debate-engine-hub.js';
+
+import { executePlanner } from './planner-agent.js';
+import { executeGenerator, negotiateSprintContract } from './generator-agent.js';
+import { executeEvaluator, reviewSprintContract } from './evaluator-agent.js';
 
 import {
   executeSprintPlan
@@ -88,6 +97,54 @@ export async function runHarnessLoop(config: HarnessConfig): Promise<void> {
 
   const stateFilePath = join(config.projectDir, STATE_FILE);
 
+  // 初始化 EventBus（Agent间通信中枢）
+  const eventBus = new EventBus(join(config.projectDir, '.events'));
+
+  // 初始化 CEO Agent（订阅关键事件）
+  const ceo = new CEOAgent(config.projectDir, config.engine || 'claude', process.env.WEBHOOK_URL);
+  
+  // CEO 通过 EventBus 接收其他 Agent 的消息
+  eventBus.onMany(
+    ['sprint:passed', 'sprint:rejected', 'sprint:rollback', 'devops:escalated', 'marketing:optimization_task', 'system:error'],
+    (event) => {
+      const type = event.type.includes('passed') ? 'progress' :
+                   event.type.includes('rejected') ? 'error' :
+                   event.type.includes('escalated') ? 'error' : 'progress';
+      ceo.notify(
+        event.projectId || '',
+        type as 'progress' | 'error',
+        `[${event.source}] ${event.type}: ${JSON.stringify(event.payload).slice(0, 100)}`
+      );
+    }
+  );
+  const existingProject = ceo.listProjects().find(p => p.name === config.requirement.slice(0, 30));
+
+  let projectId: string;
+  if (existingProject) {
+    projectId = existingProject.id;
+    ceo.notify(projectId, 'progress', '🔄 恢复项目执行');
+  } else {
+    const project = ceo.createProject(
+      config.requirement.slice(0, 50),
+      config.requirement
+    );
+    projectId = project.id;
+  }
+
+  // 初始化 DevOps Agent
+  const devops = new DevOpsAgent(
+    config.projectDir,
+    config.engine || 'claude',
+    (incident) => ceo.notify(projectId, 'error', `🚨 ${incident.description}`)
+  );
+
+  // 初始化 Marketing Agent
+  const marketing = new MarketingAgent(
+    config.projectDir,
+    config.engine || 'claude',
+    (task) => ceo.notify(projectId, 'progress', `📈 优化任务: ${task.title}`)
+  );
+
   // 加载或创建状态
   let state = loadState(stateFilePath);
   if (!state) {
@@ -119,13 +176,21 @@ export async function runHarnessLoop(config: HarnessConfig): Promise<void> {
           break;
 
         case 'phase2':
-          await executePhase2(state, config.projectDir, history);
+          await executePhase2(state, config.projectDir, history, projectId, eventBus, ceo);
           break;
 
         case 'phase3':
           await executePhase3(state, config.projectDir);
           break;
       }
+
+      // 同步 CEO Agent
+      ceo.updateProject(projectId, {
+        currentPhase: state.currentPhase,
+        currentSprint: state.phase2Output?.currentSprint || 0,
+        totalSprints: state.phase1Output?.spec?.sprintPlan?.length || 0,
+        passedSprints: state.phase2Output?.sprintResults?.filter(r => r.verdict === 'APPROVED').length || 0,
+      });
 
       // 状态转换
       state.currentPhase = getNextPhase(state.currentPhase);
@@ -146,6 +211,13 @@ export async function runHarnessLoop(config: HarnessConfig): Promise<void> {
 
         if (convergenceStatus.signal === 'STOP') {
           console.log(`\n🔴 收敛停止: ${convergenceStatus.reason}`);
+          ceo.updateProject(projectId, { status: 'deployed' });
+          ceo.notify(projectId, 'completed', `🎉 项目完成! ${state.phase2Output?.sprintResults?.filter(r=>r.verdict==='APPROVED').length || 0}/${state.phase1Output?.spec?.sprintPlan?.length || 0} Sprint通过`);
+          
+          // 打印最终摘要
+          ceo.printAllSummaries();
+          if (devops) console.log(devops.getSummary());
+          if (marketing) console.log(marketing.getSummary());
           break;
         }
 
@@ -244,10 +316,7 @@ async function generateProblemDefinition(
   const prompt = PHASE0_PROBLEM_TEMPLATE.replace('{requirement}', requirement);
 
   try {
-    const output = await execClaudeCode([
-      '--print',
-      prompt
-    ], 180000); // 3 分钟超时
+    const output = await execAgent(prompt, 180000); // 3 分钟超时
 
     // 尝试解析 JSON 输出
     try {
@@ -306,17 +375,25 @@ async function generateProblemDefinition(
 // ============= Phase 1: 规划 =============
 
 async function executePhase1(state: HarnessState, projectDir: string): Promise<void> {
-  console.log('[Phase 1] 规划阶段开始...');
+  console.log('[Phase 1] Planner Agent 启动...');
 
-  // 基于 Phase 0 结果生成产品规格
-  const spec = await generateProductSpec(
-    state.phase0Output?.debateResult?.convergedRequirement || state.originalRequirement,
-    projectDir
+  const engine = (process.env.HARNESS_ENGINE || 'claude') as AgentEngine;
+
+  // 使用 Anthropic 官方 Planner Agent
+  const plannerResult = await executePlanner(
+    {
+      originalRequirement: state.originalRequirement,
+      debateResult: state.phase0Output?.debateResult,
+      projectDir,
+    },
+    engine
   );
 
-  // 防御性检查：确保 sprintPlan 有内容
+  const spec = plannerResult.spec;
+
+  // 防御性检查
   if (!spec.sprintPlan || spec.sprintPlan.length === 0) {
-    console.warn('[Phase 1] 警告: sprintPlan 为空，使用默认 Sprint');
+    console.warn('[Phase 1] sprintPlan 为空，使用默认 Sprint');
     spec.sprintPlan = [{
       sprintNumber: 1,
       objectives: ['实现基础功能'],
@@ -328,183 +405,140 @@ async function executePhase1(state: HarnessState, projectDir: string): Promise<v
 
   state.phase1Output = { spec };
 
-  console.log('[Phase 1] 完成');
-  console.log(`Sprint 数量: ${spec.sprintPlan.length}`);
+  console.log(`[Phase 1] Planner 完成: ${spec.featureList.must.length} 必须功能, ${spec.sprintPlan.length} Sprint`);
 }
 
-/**
- * 生成产品规格
- */
-async function generateProductSpec(
-  convergedRequirement: string,
-  projectDir: string
-): Promise<ProductSpec> {
-  const planningPrompt = `
-# 产品规划任务
-
-基于以下收敛后的需求，生成完整的产品规格文档：
-
-${convergedRequirement}
-
-## 你的任务
-1. 生成产品概述
-2. 划分功能列表（MUST/SHOULD/COULD）
-3. 划分 Sprint（每个 Sprint 应该是独立的可交付单元）
-4. 确定技术方向
-5. 定义验收标准
-
-## 输出格式（JSON）
-{
-  "overview": "产品概述",
-  "featureList": {
-    "must": ["必须有的功能"],
-    "should": ["应该有的功能"],
-    "could": ["可以有的功能"]
-  },
-  "sprintPlan": [
-    {
-      "sprintNumber": 1,
-      "objectives": ["目标"],
-      "acceptanceCriteria": ["验收标准"],
-      "estimatedDuration": "预估时间",
-      "technicalConstraints": ["技术约束"]
-    }
-  ],
-  "technicalDirection": "技术方向描述",
-  "acceptanceStandards": ["验收标准"]
-}
-`;
-
-  try {
-    const output = await execClaudeCode([
-      '--print',
-      planningPrompt
-    ], 180000); // 3 分钟超时
-
-    // 尝试解析 JSON 输出
-    try {
-      const parsed = JSON.parse(output.trim());
-      // 如果解析成功且有 content 字段，提取它
-      if (parsed && typeof parsed === 'object') {
-        if (Array.isArray(parsed)) {
-          // 找到最后一个有 result 字段的消息
-          for (let i = parsed.length - 1; i >= 0; i--) {
-            if (parsed[i].result) {
-              const result = parsed[i].result;
-              if (typeof result === 'string') {
-                try {
-                  return JSON.parse(result);
-                } catch {
-                  return createDefaultSpec(convergedRequirement);
-                }
-              }
-              return result;
-            }
-          }
-        }
-        return parsed.content || parsed;
-      }
-      return parsed;
-    } catch {
-      // JSON 解析失败，尝试直接返回输出
-      const content = output.trim();
-      try {
-        return JSON.parse(content);
-      } catch {
-        // 也不是 JSON，返回默认结构
-        return createDefaultSpec(convergedRequirement);
-      }
-    }
-  } catch (error) {
-    console.error('[Phase 1] 规格生成失败:', error);
-    return createDefaultSpec(convergedRequirement);
-  }
-}
-
-/**
- * 创建默认规格
- */
-function createDefaultSpec(requirement: string): ProductSpec {
-  return {
-    overview: requirement,
-    featureList: {
-      must: ['基础功能实现'],
-      should: ['核心功能完善'],
-      could: ['高级功能']
-    },
-    sprintPlan: [
-      {
-        sprintNumber: 1,
-        objectives: ['实现基础功能'],
-        acceptanceCriteria: ['功能可运行', '无明显bug'],
-        estimatedDuration: '1-2小时',
-        technicalConstraints: []
-      }
-    ],
-    technicalDirection: '待确定',
-    acceptanceStandards: ['可运行', '功能完整']
-  };
-}
 
 // ============= Phase 2: 开发 =============
 
 async function executePhase2(
   state: HarnessState,
   projectDir: string,
-  history: IterationSnapshot[]
+  history: IterationSnapshot[],
+  projectId: string,
+  eventBus: EventBus,
+  ceo: CEOAgent
 ): Promise<void> {
-  console.log('[Phase 2] 开发阶段开始...');
+  console.log('[Phase 2] Generator + Evaluator 闭环启动...');
 
   if (!state.phase1Output?.spec) {
     throw new Error('Phase 1 输出不存在');
   }
 
-  // 执行 Sprint 计划
-  const sprintResults = await executeSprintPlan(
+  const engine = (process.env.HARNESS_ENGINE || 'claude') as AgentEngine;
+  const spec = state.phase1Output.spec;
+  const sprintResults: SupervisorReport[] = [];
+  const MAX_SPRINT_RETRIES = 3;
+
+  // 初始化 Ralph Wiggum Loop（任务级循环）
+  // 检测模型是否需要 context reset（DeepSeek 等非 Opus 模型建议开启）
+  const needsContextReset = engine === 'codex' ||
+    (process.env.HARNESS_MODEL || '').toLowerCase().includes('deepseek') ||
+    process.env.CONTEXT_RESET === 'true';
+
+  const ralphLoop = new RalphWiggumLoop({
+    mode: process.env.RALPH_MODE === 'ralphy' ? 'ralphy' : 'internal',
+    engine,
     projectDir,
-    state.phase1Output.spec
+    projectId,
+    maxIterations: 50,
+    maxRetriesPerTask: 3,
+    eventBus,
+    contextReset: needsContextReset,
+    contextResetInterval: 1, // 每个任务后重置
+  });
+
+  if (needsContextReset) {
+    console.log('[Ralph Loop] 🧹 Context Reset 已启用 (DeepSeek适配)');
+  }
+
+  ralphLoop.initTasks(spec.sprintPlan);
+
+  // 定义任务执行函数
+  const ralphResult = await ralphLoop.run(
+    async (sprint, retry, lastError) => {
+      // Ralph Loop 的每次迭代：Sprint Contract → Generator → Evaluator
+      const proposedContract = await negotiateSprintContract(sprint, spec, engine);
+      const contractReview = await reviewSprintContract(sprint, proposedContract, engine);
+
+      eventBus.emit('sprint:contract_proposed', 'generator', {
+        sprintNumber: sprint.sprintNumber,
+        approved: contractReview.approved,
+        projectId,
+      });
+
+      const genResult = await executeGenerator(
+        { sprint, spec, projectDir, previousIssues: lastError ? [lastError] : [], sprintContract: proposedContract },
+        engine
+      );
+
+      if (!genResult.success) {
+        eventBus.emit('sprint:rejected', 'generator', { sprintNumber: sprint.sprintNumber, error: 'Generator失败', projectId });
+        return { passed: false, error: 'Generator 执行失败' };
+      }
+
+      eventBus.emit('sprint:generator_done', 'generator', { sprintNumber: sprint.sprintNumber, projectId });
+
+      const report = await executeEvaluator(
+        { sprint, spec, generatorOutput: genResult.output, projectDir, sprintContract: proposedContract },
+        engine
+      );
+
+      eventBus.emit('sprint:evaluator_done', 'evaluator', {
+        sprintNumber: sprint.sprintNumber,
+        verdict: report.verdict,
+        score: report.totalScore,
+        projectId,
+      });
+
+      sprintResults.push(report);
+
+      if (report.verdict === 'APPROVED') {
+        return { passed: true, report };
+      } else if (report.verdict === 'ROLLBACK') {
+        eventBus.emit('sprint:rollback', 'evaluator', { sprintNumber: sprint.sprintNumber, projectId });
+        return { passed: false, error: 'Evaluator ROLLBACK' };
+      } else {
+        return { passed: false, error: report.issues.join('; '), report };
+      }
+    },
+    (sprintNumber) => spec.sprintPlan.find(s => s.sprintNumber === sprintNumber)
   );
+
+  ceo.updateProject(projectId, {
+    passedSprints: ralphResult.passed,
+    totalSprints: ralphResult.total,
+  });
+
 
   // 记录历史
-  const latestSnapshot = createSnapshot(
-    state.iterationCount,
-    sprintResults[sprintResults.length - 1] || createDefaultReport(),
-    history.length > 0 ? hasValueImprovement(
-      sprintResults[sprintResults.length - 1] ? createSnapshot(state.iterationCount, sprintResults[sprintResults.length - 1], true) : null,
-      history[history.length - 1] || null
-    ) : true
-  );
+  const lastReport = sprintResults[sprintResults.length - 1];
+  if (lastReport) {
+    const latestSnapshot = createSnapshot(
+      state.iterationCount,
+      lastReport,
+      history.length > 0
+        ? hasValueImprovement(
+            createSnapshot(state.iterationCount, lastReport, true),
+            history[history.length - 1] || null
+          )
+        : true
+    );
+    history.push(latestSnapshot);
 
-  history.push(latestSnapshot);
+    const prevSnapshot = history.length > 1 ? history[history.length - 2] : null;
+    console.log(`\n${generateIterationSummary(state.iterationCount, latestSnapshot, prevSnapshot, state.convergenceStatus)}`);
+  }
 
   state.phase2Output = {
-    currentSprint: state.phase1Output.spec?.sprintPlan?.length ?? 0,
-    sprintResults
+    currentSprint: spec.sprintPlan.length,
+    sprintResults,
   };
 
-  // 打印摘要
-  const prevSnapshot = history.length > 1 ? history[history.length - 2] : null;
-  console.log(`\n${generateIterationSummary(state.iterationCount, latestSnapshot, prevSnapshot, state.convergenceStatus)}`);
-
-  console.log('[Phase 2] 完成');
+  console.log(`[Phase 2] 完成: ${sprintResults.filter(r => r.verdict === 'APPROVED').length}/${spec.sprintPlan.length} Sprint 通过`);
 }
 
-/**
- * 创建默认报告
- */
-function createDefaultReport(): SupervisorReport {
-  return {
-    verdict: 'REJECTED',
-    totalScore: 5,
-    dimensionScores: {
-      productDepth: 5,
-      userExperience: 5,
-      codeQuality: 5,
-      security: 5
-    },
-    issues: ['无报告']
-  };
-}
+
 
 // ============= Phase 3: 交付 =============
 
@@ -552,11 +586,16 @@ Snake of Mercury - Unified Autopilot
   const projectDir = process.cwd();
   const maxIterations = 50;
 
+  const engine = (process.env.HARNESS_ENGINE || "claude") as AgentEngine;
+  const model = process.env.HARNESS_MODEL || "sonnet";
+  
+  console.log(`引擎: ${engine} | 模型: ${model}`);
+  
   const config: HarnessConfig = {
     requirement,
     projectDir,
     maxIterations,
-    model: 'sonnet',
+    model, engine,
     autoDeploy: true
   };
 
@@ -577,40 +616,30 @@ main().catch(console.error);
  * 执行 Claude Code CLI 命令
  * 注意：CLI 操作可能较慢，默认超时设置为 5 分钟
  */
-async function execClaudeCode(args: string[], timeout: number = 300000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('claude', args, {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
+/**
+ * 执行 Agent 命令（引擎无关）
+ * 通过 executeAgent 自动选择 Claude SDK / Claude CLI / Codex CLI
+ */
+async function execAgent(prompt: string, timeout: number = 300000): Promise<string> {
+  // 引擎和模型从环境变量读取
+  const engine = (process.env.HARNESS_ENGINE || 'claude') as AgentEngine;
+  
+  const result = await executeAgent(
+    'You are a skilled software engineer working on the Snake-of-Mercury harness system.',
+    prompt,
+    {
+      engine,
+      model: process.env.HARNESS_MODEL,
+      workdir: process.cwd(),
+      timeout,
+    }
+  );
 
-    let stdout = '';
-    let stderr = '';
+  if (!result.success) {
+    throw new Error(`Agent execution failed (${engine}): ${result.error || 'Unknown error'}`);
+  }
 
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    const timer = setTimeout(() => {
-      proc.kill();
-      reject(new Error(`Command timed out after ${timeout}ms`));
-    }, timeout);
-
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0) {
-        resolve(stdout);
-      } else {
-        reject(new Error(`Command failed with code ${code}: ${stderr}`));
-      }
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
+  return result.output;
 }
+
+// 这行已在上方更新

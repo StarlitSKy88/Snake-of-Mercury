@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Counter Application with increment, decrement, and reset functionality">
+  <title>Counter App</title>
+  <style>
+    /* Critical CSS for initial load */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+    }
+    .loading {
+      font-size: 18px;
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <p class="loading">Loading Counter...</p>
+  </div>
+  <script type="module" src="./dist/index.js"></script>
+</body>
+</html>

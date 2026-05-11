@@ -1,0 +1,129 @@
+{
+  "overview": "Simple Counter - 零认知负荷的个人计数工具。核心价值：极简主义（一个按钮、一个数字、一次点击完成）。产品定位：个人效率工具（非商业产品），解决「快速记录频次」这一细分场景。技术基因：TypeScript 单页应用，LocalStorage 持久化，无需后端，设计上强调「打开就用、用完就走」。",
+
+  "featureList": {
+    "must": [
+      "单页面计数器界面（+1/-1 大按钮，触屏优化）",
+      "当前计数显示（大字号，50px以上）",
+      "Reset 按钮（二次确认防误触）",
+      "LocalStorage 自动持久化（每次变更即时保存）",
+      "移动端基础适配（禁止缩放、无滚动条）",
+      "响应式布局（移动优先，桌面可用）"
+    ],
+    "should": [
+      "按钮按下视觉反馈（:active 状态）",
+      "计数变化时的轻微动画（CSS transition）",
+      "键盘支持（桌面端 +/=- 快捷键）",
+      "数据导出为 JSON 文件",
+      "Vercel 部署配置"
+    ],
+    "could": [
+      "多计数器支持（命名、切换）",
+      "计数历史（最近10条记录，可撤销）",
+      "深色模式（跟随系统）",
+      "自定义步进值（+1/+5/+10）",
+      "PWA 离线支持",
+      "计数目标提醒（达到目标时震动）"
+    ]
+  },
+
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": [
+        "实现核心计数器功能（+1/-1/Reset）",
+        "搭建极简项目结构（TypeScript + 单HTML或Vite）",
+        "完成 LocalStorage 持久化",
+        "移动端基础适配"
+      ],
+      "acceptanceCriteria": [
+        "用户可一键 +1/-1，计数正确更新",
+        "Reset 有点击确认对话框",
+        "刷新页面后计数不丢失",
+        "iOS Safari 和 Android Chrome 正常显示",
+        "无控制台错误"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "单页面实现，无构建或极简构建",
+        "无外部运行时依赖",
+        "状态不可变更新"
+      ]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": [
+        "完善触摸体验（无缩放、无抖动）",
+        "视觉反馈优化（按钮状态、计数动画）",
+        "键盘快捷键支持（桌面端）",
+        "数据导出功能"
+      ],
+      "acceptanceCriteria": [
+        "移动端点击无缩放（touch-action: manipulation）",
+        "+1/-1 按钮有即时视觉反馈",
+        "桌面端支持 +/- 键盘快捷键",
+        "可导出当前计数为 JSON 文件",
+        "导出文件名格式：counter-backup-{timestamp}.json"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "触摸事件正确处理（preventDefault 防止双击缩放）",
+        "动画使用 CSS transition（性能优先）",
+        "导出功能使用原生 File API"
+      ]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": [
+        "多计数器支持（核心用户反馈验证）",
+        "计数器命名与切换",
+        "Vercel 部署与基础监控",
+        "隐私友好的访问统计（Plausible Analytics）"
+      ],
+      "acceptanceCriteria": [
+        "用户可创建、命名、切换多个计数器",
+        "所有计数器数据独立持久化",
+        "部署到 Vercel 并验证可用性",
+        "页面加载 < 1s（3G 网络）",
+        "Analytics 符合 GDPR（无 Cookie）"
+      ],
+      "estimatedDuration": "2-3小时",
+      "technicalConstraints": [
+        "多计数器数据存储在 LocalStorage 的 counter_app_data key 下",
+        "部署配置 vercel.json",
+        "Analytics 集成使用 Plausible Analytics（隐私优先）"
+      ]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": [
+        "完善文档（README + 使用说明）",
+        "GitHub Repo 整理",
+        "发布准备（SEO 优化）",
+        "收集用户反馈渠道"
+      ],
+      "acceptanceCriteria": [
+        "README 包含：功能说明、快速开始、架构图",
+        "GitHub / Vercel 部署地址可用",
+        "Meta 标签完整（SEO + 社交分享预览）",
+        "页脚包含反馈入口"
+      ],
+      "estimatedDuration": "1-2小时",
+      "technicalConstraints": [
+        "README 使用 Markdown，格式清晰",
+        "无敏感信息泄露",
+        "部署后手动测试关键流程"
+      ]
+    }
+  ],
+
+  "technicalDirection": "TypeScript + Vite 构建（或纯 HTML + inline TypeScript）。单页应用，零后端依赖。状态管理：不可变更新模式 + LocalStorage 持久化。样式：极简 CSS（不超过 200 行），CSS transition 动画。部署：Vercel（默认）或 GitHub Pages。字体：系统字体栈（SF Pro / Segoe UI / Roboto），无外部字体加载。无外部运行时依赖（仅 Vitest 用于测试）。",
+
+  "acceptanceStandards": [
+    "Sprint 1: 核心计数器可运行，+1/-1/Reset 工作正常，刷新不丢数据",
+    "Sprint 2: 触摸体验无明显问题，键盘快捷键工作，导出功能正常",
+    "Sprint 3: 多计数器切换正常，Vercel 部署成功，加载时间 < 1s",
+    "Sprint 4: 文档完整，SEO 友好，可分享链接",
+    "所有 Sprint: 无控制台错误，移动端测试通过"
+  ]
+}

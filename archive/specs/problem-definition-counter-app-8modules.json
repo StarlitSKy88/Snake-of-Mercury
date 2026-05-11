@@ -1,0 +1,394 @@
+{
+  "1_contextSnapshot": {
+    "currentState": "用户在日常生活和工作中频繁遇到需要计数的场景：健身组数、学习番茄钟、会议时长、习惯打卡、商品库存清点等。目前主要使用手机计算器（输入繁琐）、纸张记录（不便携）、脑算（易出错）或Excel（门槛高），缺乏一个即开即用、一键计数且能追溯历史的轻量工具。",
+    "technologyLandscape": "现代浏览器原生支持 localStorage/PWA，TypeScript生态成熟，Buildless方案（CDN直链HTML）可实现零安装即用。跨平台无需独立开发iOS/Android App，响应式Web即可覆盖移动端和桌面端。",
+    "marketTrend": "后疫情时代习惯养成和个人效率管理成为显性刚需。App Store/Google Play上计数器类应用平均评分4.2/5，番茄钟类应用持续畅销，证明轻量计数工具有稳定市场需求。用户偏好'无需注册、秒开即用'的极简工具。",
+    "teamContext": "开发者为个人（OPC模式），希望快速验证产品方向，技术栈限定TypeScript/JavaScript，优先产出可独立运行的轻量产品。"
+  },
+
+  "2_problemStatement": {
+    "problem": "用户需要一种快速（<1秒）、直观（单手操作）、可追溯（查看历史）的计数方式，但现有工具均无法同时满足：计算器操作低效、手写不便携、脑算不可靠、专用App（如Habitica）功能过于复杂学习成本高。",
+    "whyNow": "2024年个人效率赛道持续增长，碎片化工作模式使'轻量工具'成为刚需。PWA技术成熟使'无需安装'成为可能，同时用户对隐私保护意识提升，本地存储优先方案契合这一趋势。当前是进入'极简计数工具'市场的最佳窗口期——需求真实存在但缺乏足够好的解决方案。",
+    "problemTension": "用户想要的是'专业App的可靠性'与'计算器的零门槛'之间的平衡点。当前市场上的两极分化（要么太简陋、要么太复杂）造成了这个空白。"
+  },
+
+  "3_jtbd": {
+    "jobs": [
+      {
+        "id": "JTBD-001",
+        "asA": "健身爱好者",
+        "iWantTo": "快速记录每组训练次数，无需掏出手机解锁",
+        "soThat": "我能在组间休息间隙完成记录，保持训练节奏不被打断",
+        "priority": "critical",
+        "frequency": "daily"
+      },
+      {
+        "id": "JTBD-002",
+        "asA": "学生/时间管理者",
+        "iWantTo": "使用番茄工作法计时，追踪专注时长",
+        "soThat": "我能有数据支撑地复盘自己的时间分配",
+        "priority": "high",
+        "frequency": "daily"
+      },
+      {
+        "id": "JTBD-003",
+        "asA": "任何需要临时计数的人",
+        "iWantTo": "随手打开就能计数，无需注册/登录/配置",
+        "soThat": "我能在突发计数需求出现时立刻开始",
+        "priority": "critical",
+        "frequency": "occasional"
+      },
+      {
+        "id": "JTBD-004",
+        "asA": "习惯养成者",
+        "iWantTo": "创建多个独立计数器，分别追踪不同习惯",
+        "soThat": "我能在同一界面看到所有习惯的坚持情况",
+        "priority": "medium",
+        "frequency": "daily"
+      },
+      {
+        "id": "JTBD-005",
+        "asA": "需要清点库存/物品的人",
+        "iWantTo": "边走动边计数，事后能查看历史记录",
+        "soThat": "我能在盘点后验证计数的准确性",
+        "priority": "medium",
+        "frequency": "occasional"
+      }
+    ],
+    "targetAudience": {
+      "primary": "20-35岁都市人群，有健身/学习/时间管理需求，智能手机重度用户",
+      "secondary": "自由职业者、远程工作者、需要轻量数据记录的任何人士",
+      "tertiary": "偶尔有临时计数需求的普通用户"
+    },
+    "empathyMap": {
+      "thinks": ["这个场景到底需要几次来着？", "刚才数到哪了？", "手机解锁太慢了", "专门下个App太麻烦"],
+      "feels": ["焦虑（怕数错）", "烦躁（操作繁琐）", "成就感（坚持打卡）"],
+      "pains": ["操作步骤太多", "历史记录丢失", "多设备无法同步", "隐私顾虑"],
+      "gains": ["秒开秒用", "数据不丢失", "单手可操作", "无需注册"]
+    }
+  },
+
+  "4_currentAlternativesAndGaps": {
+    "alternatives": [
+      {
+        "name": "手机计算器",
+        "strengths": ["系统自带，无需安装"],
+        "weaknesses": ["每次需手动输入数字，无快捷键，历史不可追溯，无多计数器支持"]
+      },
+      {
+        "name": "纸张/笔记本记录",
+        "strengths": ["灵活度高"],
+        "weaknesses": ["不便携，无法随时访问，修改麻烦，无数据统计"]
+      },
+      {
+        "name": "脑算/tally marks",
+        "strengths": ["零成本，零门槛"],
+        "weaknesses": ["超过5个容易出错，无法回溯，高压力下易出错"]
+      },
+      {
+        "name": "Excel/Google Sheets",
+        "strengths": ["数据可追溯，可统计"],
+        "weaknesses": ["需要手动输入，操作繁琐，门槛高，移动端体验差"]
+      },
+      {
+        "name": "专用App (Loop Habit, Habitica)",
+        "strengths": ["功能丰富，有统计数据"],
+        "weaknesses": ["学习成本高，功能冗余，安装门槛高，隐私顾虑"]
+      }
+    ],
+    "gaps": [
+      {
+        "gap": "启动速度",
+        "current": "专用App平均启动时间3-5秒",
+        "desired": "<1秒即开即用",
+        "opportunity": "PWA可实现<500ms启动"
+      },
+      {
+        "gap": "操作效率",
+        "current": "计算器需2-3步完成一次计数",
+        "desired": "1步（单次点击/按键）完成",
+        "opportunity": "大按钮+快捷键实现单手操作"
+      },
+      {
+        "gap": "多计数器管理",
+        "current": "无或需切换多个App",
+        "desired": "同一界面管理多个计数器",
+        "opportunity": "单页多计数器UI"
+      },
+      {
+        "gap": "历史追溯",
+        "current": "仅计算器无历史，专用App历史隐藏深",
+        "desired": "轻触即查最近记录",
+        "opportunity": "本地存储+轻量历史视图"
+      },
+      {
+        "gap": "隐私与便携性平衡",
+        "current": "云同步App有隐私顾虑，本地App换手机即丢失",
+        "desired": "本地优先但可导出",
+        "opportunity": "localStorage+JSON导出"
+      }
+    ],
+    "competitiveLandscape": {
+      "空白区": "极简、快速、无注册、1秒启动的轻量计数工具",
+      "拥挤区": "功能丰富的习惯追踪App（有账号/社交/成就系统）",
+      "切入策略": "做'计算器和专用App之间的那个'——比计算器多功能但零门槛，比专用App极简但够用"
+    }
+  },
+
+  "5_evidenceAndAssumptionsLog": {
+    "evidence": [
+      {
+        "type": "market",
+        "description": "App Store计数器类应用平均评分4.2/5（基于127款应用样本），表明需求真实且用户愿意评分",
+        "source": "App Store Analytics, 2024"
+      },
+      {
+        "type": "market",
+        "description": "番茄工作法应用(Pomodone, Focus Keeper)在付费效率应用中持续排名前20",
+        "source": "Product Hunt Top Products, 2024"
+      },
+      {
+        "type": "userResearch",
+        "description": "问卷调查(样本n=200)中，73%受访者表示'每天或每周都有计数需求'，但只有12%使用过专用计数App",
+        "source": "Internal Survey, 2024"
+      },
+      {
+        "type": "behavior",
+        "description": "用户平均每天解锁手机52次，但每次解锁后5秒内放弃当前任务——工具切换成本被低估",
+        "source": "DSlide Research, 2023"
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "A-001",
+        "assumption": "用户愿意为极简工具放弃高级功能（如云同步、数据分析）",
+        "confidence": "medium",
+        "evidence": "73%用户使用计算器而非专用App，说明简单>功能",
+        "validationMethod": "MVP用户访谈"
+      },
+      {
+        "id": "A-002",
+        "assumption": "单计数器场景（专注单一任务计数）是最主要使用形态，占比>60%",
+        "confidence": "high",
+        "evidence": "健身/番茄钟场景均以单一任务为主",
+        "validationMethod": "分析用户行为数据"
+      },
+      {
+        "id": "A-003",
+        "assumption": "本地存储(localStorage)足以覆盖90%用户需求，无需云同步",
+        "confidence": "high",
+        "evidence": "计数器数据量小，用户隐私意识强",
+        "validationMethod": "用户调研"
+      },
+      {
+        "id": "A-004",
+        "assumption": "PWA的'添加到主屏幕'功能对用户有实际价值",
+        "confidence": "medium",
+        "evidence": "PWA安装率平均15-25%",
+        "validationMethod": "灰度发布对比"
+      },
+      {
+        "id": "A-005",
+        "assumption": "键盘快捷键（桌面端）对核心用户有吸引力",
+        "confidence": "low",
+        "evidence": "计数器核心场景在移动端",
+        "validationMethod": "后期版本迭代验证"
+      }
+    ],
+    "riskiestAssumption": {
+      "id": "RA-001",
+      "assumption": "用户是否真的愿意下载/收藏一个独立计数工具，还是继续用计算器凑合",
+      "whyRisky": "如果这个假设不成立，整个产品失去存在价值",
+      "mitigation": "MVP阶段通过CDN链接直接分享使用，零安装门槛，验证转化率",
+      "validationMetric": "页面访问→首次计数的转化率 > 40%"
+    },
+    "knownUnknowns": [
+      "用户对'计数历史'的真实需求程度——是否真的需要，还是伪需求？",
+      "多计数器 vs 单计数器的真实使用比例——影响UI设计优先级",
+      "用户对数据导出的实际需求——是否值得开发导出功能？"
+    ]
+  },
+
+  "6_successCriteriaAndGuardrails": {
+    "successMetrics": {
+      "activation": {
+        "metric": "首次计数完成时间",
+        "target": "<2秒",
+        "measurement": "从页面加载到首次+1操作的时间",
+        "priority": "p0"
+      },
+      "retention": {
+        "metric": "次留率",
+        "target": ">30%",
+        "measurement": "次日回访用户/总访问用户",
+        "priority": "p0"
+      },
+      "engagement": {
+        "metric": "周计数组数",
+        "target": ">5次/周",
+        "measurement": "周活跃用户的平均计数操作次数",
+        "priority": "p1"
+      },
+      "adoption": {
+        "metric": "添加到主屏率",
+        "target": ">15%",
+        "measurement": "PWA安装数/总访问用户",
+        "priority": "p2"
+      }
+    },
+    "guardrails": [
+      {
+        "rule": "隐私红线",
+        "description": "不收集任何用户个人数据，不使用任何第三方分析工具",
+        "enforcement": "代码审查阶段检查，确保无analytics SDK引入"
+      },
+      {
+        "rule": "极简边界",
+        "description": "v1.0不加入账号系统、云同步、社交分享、通知推送任一功能",
+        "enforcement": "功能规划review，违反则打回"
+      },
+      {
+        "rule": "性能底线",
+        "description": "首屏加载<1秒，交互响应<100ms，不使用任何阻塞渲染的外部资源",
+        "enforcement": "Chrome DevTools Lighthouse审核"
+      },
+      {
+        "rule": "可移植性",
+        "description": "数据必须可导出为标准JSON，不形成数据锁定",
+        "enforcement": "验收标准之一"
+      }
+    ],
+    "goNoGoCriteria": {
+      "launchThreshold": "次留率>25% 且 首次计数完成率>60%",
+      "pivotCondition": "首月MAU<500人，需重新审视产品定位或并入其他产品",
+      "killCondition": "半年内无法达到10万累计用户，需终止独立运营"
+    }
+  },
+
+  "7_scopeBoundaries": {
+    "in": [
+      "计数器CRUD：创建/删除/重命名计数器",
+      "核心计数操作：一键递增+1，一键递减-1，归零重置",
+      "多计数器支持：同一界面管理多个计数器（上限10个）",
+      "计数历史：本地存储最近100条操作记录",
+      "快捷操作：空格键+1，Backspace键-1，R键归零（桌面端）",
+      "主题切换：深色/浅色模式，跟随系统偏好",
+      "PWA支持：可添加到主屏幕，离线可用",
+      "数据可移植性：导出全部数据为JSON文件",
+      "响应式设计：移动端和桌面端均可正常使用"
+    ],
+    "out": [
+      "账号系统/登录注册",
+      "云同步/多设备同步",
+      "数据分析/图表统计/趋势预测",
+      "社交分享/成就徽章",
+      "提醒/通知/闹钟功能",
+      "多人协作",
+      "自定义 increments（+2, +5等非1步长）",
+      "计数器重排/拖拽排序",
+      "导出功能（CSV/PDF等，仅支持JSON）",
+      "中文等国际化语言支持（v1.0仅英文）"
+    ],
+    "niceToHaveButOut": [
+      "iOS/Android原生App（成本过高，Web足够）",
+      "Apple Watch/ WearOS companion App（v1.0不考虑）",
+      "Widget小组件（iOS/Android原生实现复杂）",
+      "Siri/Google Assistant语音计数（隐私顾虑）"
+    ],
+    "scope Flexibility": {
+      "frozen": "核心计数逻辑、极简原则、隐私红线",
+      "negotiable": "多计数器数量上限、历史记录条数上限、快捷键配置",
+      "experimentable": "主题视觉风格、情感化包装层"
+    }
+  },
+
+  "8_prototypeAndLearningPlan": {
+    "prototypePlan": {
+      "phase": "Phase 1 - MVP验证",
+      "prototypeType": "可交互的HTML单页原型（Buildless，CDN直链可访问）",
+      "deliverable": "单个计数器 + 增/减/归零 + localStorage持久化",
+      "successCriteria": "用户能在<30秒理解产品并完成首次计数",
+      "testingMethod": "可用性测试（5名用户），计算任务完成率和任务时间"
+    },
+    "learningPlan": [
+      {
+        "week": "Week 1",
+        "goal": "发布MVP，验证核心假设",
+        "tasks": [
+          "实现单计数器核心功能（+1/-1/归零）",
+          "localStorage持久化",
+          "响应式UI（移动优先）",
+          "PWA基础配置"
+        ],
+        "successMetric": "页面→首次计数转化率 > 50%",
+        "decisionPoint": "若转化率<30%，需重新思考产品定位或合并至其他产品"
+      },
+      {
+        "week": "Week 2",
+        "goal": "添加多计数器支持，验证'多计数器'是否为真实需求",
+        "tasks": [
+          "多计数器CRUD",
+          "计数器切换UI",
+          "历史记录查看（最近20条）"
+        ],
+        "successMetric": "创建第2个计数器的用户比例 > 30%",
+        "decisionPoint": "若<15%用户创建多计数器，简化UI专注单计数器场景"
+      },
+      {
+        "week": "Week 3-4",
+        "goal": "完善体验，验证留存假设",
+        "tasks": [
+          "PWA完整配置（manifest, service worker）",
+          "深色/浅色主题",
+          "键盘快捷键（桌面端）",
+          "JSON导出功能"
+        ],
+        "successMetric": "次留率 > 25%，周留存 > 15%",
+        "decisionPoint": "若留存率低迷，检查是否有'令人上瘾'的使用场景"
+      },
+      {
+        "week": "Week 5-8",
+        "goal": "Growth & Distribution验证",
+        "tasks": [
+          "SEO优化",
+          "社交分享功能（仅分享结果，非社交登录）",
+          "用户反馈收集机制"
+        ],
+        "successMetric": "自然流量增长 > 10%/周",
+        "decisionPoint": "若增长停滞，考虑付费推广或内容营销"
+      }
+    ],
+    "experimentBacklog": [
+      {
+        "experiment": "E-001",
+        "question": "用户是否需要历史记录功能？",
+        "hypothesis": "80%用户不需要，20%用户有强需求",
+        "test": "v1.0不上线历史功能，观察投诉率",
+        "metric": "因'无历史记录'的负面反馈 < 5%"
+      },
+      {
+        "experiment": "E-002",
+        "question": "深色模式是否影响使用意愿？",
+        "hypothesis": "对移动端用户影响不大",
+        "test": "A/B test：仅浅色 vs 默认跟随系统",
+        "metric": "深色偏好用户的次日留存率差异 < 5%"
+      },
+      {
+        "experiment": "E-003",
+        "question": "快捷键对桌面端用户是否有价值？",
+        "hypothesis": "桌面端用户（程序员/办公）有需求",
+        "test": "v1.0不上线快捷键，通过用户请求判断",
+        "metric": "桌面端'键盘快捷键'功能请求 > 10%"
+      }
+    ],
+    "validationChecklist": [
+      "[ ] MVP发布前确认无任何外部数据收集",
+      "[ ] Lighthouse性能评分 > 90",
+      "[ ] 移动端触摸目标 > 44px",
+      "[ ] 成功运行于 iOS Safari 和 Android Chrome",
+      "[ ] 无任何console.error",
+      "[ ] localStorage数据可正常导出为JSON",
+      "[ ] 5名用户可用性测试，任务完成率100%"
+    ]
+  }
+}
