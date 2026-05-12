@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>山海经·创业蛇王 — 独一无二的贪吃蛇</title>
+<style>
+:root {
+  --ink: #1a1a1a;
+  --paper: #f5f0e8;
+  --accent: #8b0000;
+  --gold: #b8860b;
+  --jade: #2e5c3b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--paper);
+  font-family: 'Noto Serif SC', 'STSong', 'SimSun', 'KaiTi', serif;
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; overflow: hidden;
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(139,0,0,0.03) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 50%, rgba(46,92,59,0.03) 0%, transparent 60%);
+}
+#container {
+  position: relative;
+  max-width: 680px; width: 100%;
+  padding: 12px;
+}
+#header {
+  text-align: center; margin-bottom: 8px;
+}
+#header h1 {
+  font-size: clamp(18px,4vw,28px); color: var(--ink);
+  letter-spacing: 2px; font-weight: 900;
+  text-shadow: 1px 1px 0 rgba(139,0,0,0.15);
+}
+#header .sub {
+  font-size: 12px; color: #888; letter-spacing: 1px;
+}
+#canvas-wrap {
+  position: relative;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12), inset 0 0 40px rgba(139,0,0,0.03);
+  background: #faf6ee;
+  overflow: hidden;
+}
+canvas { display: block; width: 100%; height: auto; image-rendering: auto; }
+#hud {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 4px; font-size: 13px; color: var(--ink);
+  flex-wrap: wrap; gap: 4px;
+}
+#hud .stat {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; background: rgba(0,0,0,0.03);
+  border-radius: 3px; font-size: 12px;
+}
+#hud .stat strong { color: var(--accent); font-size: 14px; }
+#controls {
+  display: flex; gap: 6px; justify-content: center;
+  flex-wrap: wrap; margin-top: 8px;
+}
+#controls button {
+  padding: 8px 18px; border: 1.5px solid var(--ink);
+  background: var(--paper); color: var(--ink);
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  border-radius: 3px; letter-spacing: 1px;
+  transition: all 0.2s;
+}
+#controls button:hover { background: var(--ink); color: var(--paper); }
+#controls button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+#controls button.primary:hover { background: #a00000; }
+#mobile-controls {
+  display: none; grid-template-areas:
+    '. up .'
+    'left . right'
+    '. down .';
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px; max-width: 200px; margin: 8px auto;
+}
+#mobile-controls button {
+  padding: 18px 0; border: 1px solid var(--ink);
+  background: rgba(0,0,0,0.02); font-size: 20px;
+  cursor: pointer; border-radius: 3px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+}
+#mobile-controls button:active { background: var(--ink); color: var(--paper); }
+#btn-up { grid-area: up; } #btn-down { grid-area: down; }
+#btn-left { grid-area: left; } #btn-right { grid-area: right; }
+#toast {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--paper);
+  padding: 10px 24px; border-radius: 4px; font-size: 14px;
+  z-index: 100; opacity: 0; transition: opacity 0.3s;
+  pointer-events: none; letter-spacing: 1px;
+}
+#toast.show { opacity: 1; }
+@media (max-width: 600px) {
+  #mobile-controls { display: grid; }
+  #hud { font-size: 11px; }
+  #hud .stat { font-size: 10px; padding: 3px 6px; }
+}
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="header">
+    <h1>🐉 山海经·创业蛇王</h1>
+    <div class="sub">在神话地图上吞并资源，碾压竞争对手，成为商道至尊</div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="game"></canvas>
+  </div>
+  <div id="hud">
+    <div class="stat">🐍 蛇长 <strong id="score">3</strong></div>
+    <div class="stat">💰 金币 <strong id="gold">0</strong></div>
+    <div class="stat">⚔️ 击杀 <strong id="kills">0</strong></div>
+    <div class="stat">📈 等级 <strong id="level">1</strong></div>
+    <div class="stat" style="color:var(--accent)">🏆 最高 <strong id="highscore">0</strong></div>
+  </div>
+  <div id="controls">
+    <button class="primary" id="btn-start" onclick="startGame()">▶ 开 始</button>
+    <button id="btn-pause" onclick="togglePause()">⏯️ 暂停</button>
+    <button id="btn-reset" onclick="resetGame()">↺ 重置</button>
+  </div>
+  <div id="mobile-controls">
+    <button id="btn-up" ontouchstart="setDir(0,-1);event.preventDefault()">▲</button>
+    <button id="btn-left" ontouchstart="setDir(-1,0);event.preventDefault()">◀</button>
+    <button id="btn-right" ontouchstart="setDir(1,0);event.preventDefault()">▶</button>
+    <button id="btn-down" ontouchstart="setDir(0,1);event.preventDefault()">▼</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ============ 山海经·创业蛇王 ============
+// 独一无二的设计：
+// 1. AI 竞争对手蛇在同一地图竞争资源
+// 2. 创业地图上有"客户"(绿)、"资源"(金)、"天劫"(红)三类物品
+// 3. 收集资源升级，可以吞噬比自己短的竞争对手
+// 4. 山海经水墨画风
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// 配置
+const COLS = 40, ROWS = 40;
+let cellSize;
+const COLORS = {
+  bg: '#faf6ee',
+  grid: 'rgba(0,0,0,0.03)',
+  playerHead: '#1a1a1a',
+  playerBody: '#3a3a3a',
+  playerGlow: 'rgba(139,0,0,0.3)',
+  enemyHead: '#8b4513',
+  enemyBody: '#a0522d',
+  enemyGlow: 'rgba(139,69,19,0.3)',
+  customer: '#2e5c3b',
+  customerGlow: 'rgba(46,92,59,0.4)',
+  resource: '#b8860b',
+  resourceGlow: 'rgba(184,134,11,0.4)',
+  disaster: '#8b0000',
+  disasterGlow: 'rgba(139,0,0,0.5)',
+};
+
+// 游戏状态
+let player = [], enemies = [], items = [];
+let playerDir = {x:1,y:0}, nextDir = {x:1,y:0};
+let score = 3, gold = 0, kills = 0, level = 1;
+let highScore = parseInt(localStorage.getItem('snakeHighScore')||'0');
+let gameRunning = false, paused = false, gameOver = false;
+let tickTimer = null, tickSpeed = 120;
+let particles = [];
+let mapOffset = 0;
+
+// ============ 山川纹理背景 ============
+function drawInkBackground() {
+  // 宣纸底色
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  
+  // 网格线 - 水墨淡线
+  ctx.strokeStyle = COLORS.grid;
+  ctx.lineWidth = 0.5;
+  for (let x=0; x<=COLS; x++) {
+    ctx.beginPath();
+    ctx.moveTo(x*cellSize,0); ctx.lineTo(x*cellSize,canvas.height);
+    ctx.stroke();
+  }
+  for (let y=0; y<=ROWS; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0,y*cellSize); ctx.lineTo(canvas.width,y*cellSize);
+    ctx.stroke();
+  }
+  
+  // 水墨山峦纹理
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  mapOffset = (mapOffset + 0.02) % (Math.PI*2);
+  for (let i=0; i<5; i++) {
+    ctx.beginPath();
+    const peakX = canvas.width*(0.2 + i*0.15);
+    const peakY = canvas.height*(0.3 + Math.sin(mapOffset+i)*0.1);
+    ctx.moveTo(peakX-80, canvas.height);
+    ctx.quadraticCurveTo(peakX-40, peakY+60, peakX, peakY);
+    ctx.quadraticCurveTo(peakX+40, peakY+60, peakX+80, canvas.height);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ============ 墨色粒子 ============
+function spawnParticles(x,y,color,count=5) {
+  for (let i=0; i<count; i++) {
+    particles.push({
+      x: x*cellSize+cellSize/2, y: y*cellSize+cellSize/2,
+      vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3,
+      life: 1, color, size: 1+Math.random()*2
+    });
+  }
+}
+function updateParticles() {
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.life -= 0.03;
+    return p.life > 0;
+  });
+}
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life*0.6;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ============ 绘制函数 ============
+function drawItem(x,y,type) {
+  const cx = x*cellSize+cellSize/2, cy = y*cellSize+cellSize/2;
+  const r = cellSize*0.35;
+  
+  ctx.save();
+  if (type==='customer') {
+    // 客户 = 绿色宝石(消费者)
+    ctx.fillStyle = COLORS.customer;
+    ctx.shadowColor = COLORS.customerGlow;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy-r);
+    ctx.lineTo(cx+r*0.8, cy+r*0.3);
+    ctx.lineTo(cx-r*0.8, cy+r*0.3);
+    ctx.closePath();
+    ctx.fill();
+    // "客"字
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = `${cellSize*0.3}px "KaiTi","STKaiti",serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('客', cx, cy);
+  } else if (type==='resource') {
+    // 资源 = 金币
+    ctx.fillStyle = COLORS.resource;
+    ctx.shadowColor = COLORS.resourceGlow;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${cellSize*0.25}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('¥', cx, cy);
+  } else if (type==='disaster') {
+    // 天劫 = 红色雷纹
+    ctx.fillStyle = COLORS.disaster;
+    ctx.shadowColor = COLORS.disasterGlow;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    // 闪电形状
+    ctx.moveTo(cx-r*0.3, cy-r);
+    ctx.lineTo(cx+r*0.2, cy-r*0.2);
+    ctx.lineTo(cx-r*0.2, cy);
+    ctx.lineTo(cx+r*0.3, cy+r);
+    ctx.lineTo(cx, cy+r*0.3);
+    ctx.lineTo(cx-r*0.3, cy-r*0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+function drawSnake(snake, isPlayer) {
+  if (snake.length===0) return;
+  
+  // 水墨蛇身 - 从尾到头绘制，头部最后(在最上层)
+  for (let i=snake.length-1; i>=0; i--) {
+    const seg = snake[i];
+    const cx = seg.x*cellSize+cellSize/2, cy = seg.y*cellSize+cellSize/2;
+    
+    if (i===0) {
+      // 蛇头 - 龙首造型
+      ctx.save();
+      const color = isPlayer ? COLORS.playerHead : COLORS.enemyHead;
+      const glow = isPlayer ? COLORS.playerGlow : COLORS.enemyGlow;
+      ctx.fillStyle = color;
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = isPlayer ? 8 : 5;
+      
+      const headR = cellSize*0.42;
+      ctx.beginPath();
+      ctx.arc(cx, cy, headR, 0, Math.PI*2);
+      ctx.fill();
+      
+      // 眼睛
+      ctx.shadowBlur = 0;
+      const eyeOffset = headR*0.5;
+      const dir = snake.length>1 
+        ? {x:seg.x-snake[1].x, y:seg.y-snake[1].y}
+        : playerDir;
+      const ang = Math.atan2(dir.y, dir.x);
+      
+      for (let s=-1; s<=1; s+=2) {
+        const ex = cx + Math.cos(ang+s*0.6)*eyeOffset;
+        const ey = cy + Math.sin(ang+s*0.6)*eyeOffset;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(ex, ey, headR*0.3, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = isPlayer ? '#c00' : '#000';
+        ctx.beginPath();
+        ctx.arc(ex+Math.cos(ang)*2, ey+Math.sin(ang)*2, headR*0.15, 0, Math.PI*2);
+        ctx.fill();
+      }
+      
+      // 龙角(玩家专属)
+      if (isPlayer && level>=3) {
+        ctx.fillStyle = COLORS.gold;
+        for (let s=-1; s<=1; s+=2) {
+          ctx.beginPath();
+          const ax = cx+Math.cos(ang+s*0.8)*headR*0.6;
+          const ay = cy+Math.sin(ang+s*0.8)*headR*0.6;
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(ax+Math.cos(ang)*headR*0.8, ay+Math.sin(ang)*headR*0.8-headR*0.5);
+          ctx.lineTo(ax+Math.cos(ang+s*0.3)*headR*0.5, ay+Math.sin(ang+s*0.3)*headR*0.5);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    } else {
+      // 蛇身 - 水墨渐变
+      const t = i/snake.length;
+      const alpha = 0.25 + t*0.65;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = isPlayer ? COLORS.playerBody : COLORS.enemyBody;
+      
+      const bodyR = cellSize*0.3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, bodyR, 0, Math.PI*2);
+      ctx.fill();
+      
+      // 鳞片纹理
+      if (i%3===0) {
+        ctx.globalAlpha = alpha*0.3;
+        ctx.fillStyle = isPlayer ? '#666' : '#8b7355';
+        ctx.beginPath();
+        ctx.arc(cx, cy, bodyR*0.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+}
+
+// ============ 游戏逻辑 ============
+function placeItem(type) {
+  let x, y, attempts=0;
+  do {
+    x = Math.floor(Math.random()*COLS);
+    y = Math.floor(Math.random()*ROWS);
+    attempts++;
+  } while (attempts<100 && (
+    player.some(s=>s.x===x&&s.y===y) ||
+    enemies.some(e=>e.some(s=>s.x===x&&s.y===y)) ||
+    items.some(i=>i.x===x&&i.y===y)
+  ));
+  items.push({x, y, type, spawnTime: Date.now()});
+}
+
+function spawnItems() {
+  // 保持地图上有足够的物品
+  const customers = items.filter(i=>i.type==='customer').length;
+  const resources = items.filter(i=>i.type==='resource').length;
+  const disasters = items.filter(i=>i.type==='disaster').length;
+  
+  if (customers<4) placeItem('customer');
+  if (resources<3) placeItem('resource');
+  if (disasters<2 && Math.random()<0.5) placeItem('disaster');
+  
+  // 清理超时物品(30秒)
+  const now = Date.now();
+  items = items.filter(i => now-i.spawnTime < 30000);
+}
+
+// AI 竞争对手逻辑
+function moveEnemy(index) {
+  const snake = enemies[index];
+  if (snake.length===0) return;
+  
+  const head = snake[0];
+  const targets = [...items.filter(i=>i.type==='customer'), ...items.filter(i=>i.type==='resource')];
+  
+  // 简单AI：找最近的目标，避开天劫和比自己长的玩家
+  let bestDir = {x:0,y:-1};
+  let bestDist = Infinity;
+  
+  const directions = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  
+  for (const dir of directions) {
+    const nx = head.x+dir.x, ny = head.y+dir.y;
+    
+    // 基本边界检查
+    if (nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+    
+    // 避开天劫
+    if (items.some(i=>i.type==='disaster'&&i.x===nx&&i.y===ny)) continue;
+    
+    // 避开自己身体
+    if (snake.slice(0,-1).some(s=>s.x===nx&&s.y===ny)) continue;
+    
+    // 避开比自己长的玩家(除非能偷袭)
+    const nearPlayer = player.some(s=>s.x===nx&&s.y===ny);
+    if (nearPlayer && player.length>=snake.length) continue;
+    
+    let dist = Infinity;
+    for (const t of targets) {
+      const d = Math.abs(nx-t.x)+Math.abs(ny-t.y);
+      if (d<dist) dist = d;
+    }
+    
+    // 加点随机性
+    dist += Math.random()*3;
+    
+    if (dist<bestDist) {
+      bestDist = dist;
+      bestDir = dir;
+    }
+  }
+  
+  // 移动
+  const newHead = {x:head.x+bestDir.x, y:head.y+bestDir.y};
+  
+  // 边界环绕
+  if (newHead.x<0) newHead.x=COLS-1;
+  if (newHead.x>=COLS) newHead.x=0;
+  if (newHead.y<0) newHead.y=ROWS-1;
+  if (newHead.y>=ROWS) newHead.y=0;
+  
+  // 检查是否咬到玩家
+  const hitPlayer = player.some(s=>s.x===newHead.x&&s.y===newHead.y);
+  if (hitPlayer && snake.length>player.length) {
+    // 敌人比玩家长，玩家被吞噬
+    endGame('enemy');
+    return;
+  }
+  if (hitPlayer && snake.length<=player.length) {
+    // 玩家更长，干掉这个敌人
+    enemies.splice(index,1);
+    kills++;
+    gold+=5;
+    spawnParticles(newHead.x, newHead.y, COLORS.enemyHead, 15);
+    showToast('⚔️ 击杀了竞争对手！');
+    return;
+  }
+  
+  snake.unshift(newHead);
+  
+  // 吃物品
+  const itemIdx = items.findIndex(i=>i.x===newHead.x&&i.y===newHead.y);
+  if (itemIdx>=0) {
+    if (items[itemIdx].type==='disaster') {
+      // 天劫 - 缩短
+      if (snake.length>2) snake.pop();
+      spawnParticles(newHead.x, newHead.y, COLORS.disaster, 8);
+    } else {
+      // 吃资源/客户 - 增长
+      snake.push({...snake[snake.length-1]});
+    }
+    items.splice(itemIdx,1);
+  } else {
+    snake.pop();
+  }
+}
+
+function gameTick() {
+  if (!gameRunning || paused || gameOver) return;
+  
+  // 应用方向
+  if (nextDir.x!==-playerDir.x || nextDir.y!==-playerDir.y) {
+    playerDir = nextDir;
+  }
+  
+  // 移动玩家
+  const head = player[0];
+  const newHead = {x:head.x+playerDir.x, y:head.y+playerDir.y};
+  
+  // 边界环绕(山海经地图是球形的！)
+  if (newHead.x<0) newHead.x=COLS-1;
+  if (newHead.x>=COLS) newHead.x=0;
+  if (newHead.y<0) newHead.y=ROWS-1;
+  if (newHead.y>=ROWS) newHead.y=0;
+  
+  // 撞自己
+  if (player.some(s=>s.x===newHead.x&&s.y===newHead.y)) {
+    endGame('self');
+    return;
+  }
+  
+  // 撞敌人 - 检查所有敌人身体
+  for (let ei=0; ei<enemies.length; ei++) {
+    const enemy = enemies[ei];
+    const hitEnemy = enemy.some(s=>s.x===newHead.x&&s.y===newHead.y);
+    if (hitEnemy) {
+      if (player.length>enemy.length) {
+        // 玩家更长，吞噬敌人
+        enemies.splice(ei,1);
+        kills++;
+        gold+=5;
+        spawnParticles(newHead.x, newHead.y, COLORS.enemyHead, 15);
+        showToast('⚔️ 击杀了竞争对手！');
+        break;
+      } else {
+        endGame('enemy');
+        return;
+      }
+    }
+  }
+  
+  player.unshift(newHead);
+  
+  // 吃物品
+  const itemIdx = items.findIndex(i=>i.x===newHead.x&&i.y===newHead.y);
+  if (itemIdx>=0) {
+    const item = items[itemIdx];
+    if (item.type==='customer') {
+      score++;
+      gold+=2;
+      spawnParticles(newHead.x, newHead.y, COLORS.customer, 6);
+      showToast('👤 +1 客户！');
+    } else if (item.type==='resource') {
+      score+=2;
+      gold+=3;
+      spawnParticles(newHead.x, newHead.y, COLORS.resource, 8);
+      showToast('💰 +3 金币！');
+    } else if (item.type==='disaster') {
+      gold = Math.max(0, gold-2);
+      spawnParticles(newHead.x, newHead.y, COLORS.disaster, 10);
+      showToast('⚡ 遭遇天劫！损失 2 金币');
+    }
+    items.splice(itemIdx,1);
+  } else {
+    player.pop();
+  }
+  
+  // 升级
+  const newLevel = Math.floor(score/5)+1;
+  if (newLevel>level) {
+    level = newLevel;
+    showToast(`📈 升级！Lv.${level} — ${level>=3?'龙角已觉醒！':''}`);
+    // 升级时增加敌人
+    if (level%2===0 && enemies.length<5) {
+      spawnEnemy();
+    }
+  }
+  
+  // 移动敌人
+  for (let i=enemies.length-1; i>=0; i--) {
+    moveEnemy(i);
+  }
+  
+  // 刷新物品
+  spawnItems();
+  
+  // 更新 UI
+  updateHUD();
+  
+  // 加速(等级越高越快)
+  const speed = Math.max(60, tickSpeed-level*5);
+  if (tickTimer) clearTimeout(tickTimer);
+  tickTimer = setTimeout(gameTick, speed);
+}
+
+function spawnEnemy() {
+  let x, y;
+  do {
+    x = Math.floor(Math.random()*COLS);
+    y = Math.floor(Math.random()*ROWS);
+  } while (player.some(s=>Math.abs(s.x-x)<10&&Math.abs(s.y-y)<10));
+  
+  const len = 3+Math.floor(Math.random()*level);
+  const enemy = [{x,y}];
+  // 确保初始方向远离玩家
+  const away = {x: x>COLS/2?-1:1, y: y>ROWS/2?-1:1};
+  for (let i=1; i<len; i++) {
+    enemy.push({x: x+away.x*i, y: y+away.y*i});
+  }
+  enemies.push(enemy);
+}
+
+// ============ UI ============
+function updateHUD() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('gold').textContent = gold;
+  document.getElementById('kills').textContent = kills;
+  document.getElementById('level').textContent = level;
+  if (score>highScore) {
+    highScore = score;
+    localStorage.setItem('snakeHighScore', String(highScore));
+  }
+  document.getElementById('highscore').textContent = highScore;
+}
+
+let toastTimeout;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(()=>el.classList.remove('show'), 1500);
+}
+
+// ============ 游戏控制 ============
+function setDir(x,y) {
+  if (!gameRunning || gameOver) return;
+  // 防止反向
+  if (x===-playerDir.x && y===-playerDir.y && player.length>1) return;
+  nextDir = {x,y};
+}
+
+function startGame() {
+  if (gameRunning && !gameOver) return;
+  
+  // 初始化
+  const midX = Math.floor(COLS/2), midY = Math.floor(ROWS/2);
+  player = [{x:midX,y:midY},{x:midX-1,y:midY},{x:midX-2,y:midY}];
+  playerDir = {x:1,y:0}; nextDir = {x:1,y:0};
+  enemies = [];
+  items = [];
+  particles = [];
+  score = 3; gold = 0; kills = 0; level = 1;
+  gameRunning = true; gameOver = false; paused = false;
+  
+  // 初始物品
+  for (let i=0; i<6; i++) placeItem('customer');
+  for (let i=0; i<4; i++) placeItem('resource');
+  
+  // 初始敌人
+  spawnEnemy();
+  
+  document.getElementById('btn-start').textContent = '🔄 重来';
+  updateHUD();
+  
+  if (tickTimer) clearTimeout(tickTimer);
+  tickTimer = setTimeout(gameTick, tickSpeed);
+}
+
+function togglePause() {
+  if (!gameRunning || gameOver) return;
+  paused = !paused;
+  document.getElementById('btn-pause').textContent = paused ? '▶ 继续' : '⏯️ 暂停';
+  if (!paused) {
+    if (tickTimer) clearTimeout(tickTimer);
+    tickTimer = setTimeout(gameTick, tickSpeed);
+  }
+}
+
+function resetGame() {
+  if (tickTimer) clearTimeout(tickTimer);
+  gameRunning = false; gameOver = false;
+  player = []; enemies = []; items = []; particles = [];
+  document.getElementById('btn-start').textContent = '▶ 开 始';
+  document.getElementById('btn-pause').textContent = '⏯️ 暂停';
+  resize();
+  draw();
+  updateHUD();
+}
+
+function endGame(reason) {
+  gameRunning = false; gameOver = true;
+  if (tickTimer) clearTimeout(tickTimer);
+  
+  if (score>highScore) {
+    highScore = score;
+    localStorage.setItem('snakeHighScore', String(highScore));
+  }
+  
+  const msgs = {
+    self: '💀 咬到了自己！商道无常，重新来过吧...',
+    enemy: '🐺 被竞争对手吞噬了！你的商业帝国覆灭了...',
+  };
+  showToast(msgs[reason]||'游戏结束');
+  document.getElementById('btn-start').textContent = '🔄 再来一局';
+  draw();
+  updateHUD();
+}
+
+// ============ 渲染 ============
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  const size = Math.min(wrap.clientWidth, 600);
+  canvas.width = size;
+  canvas.height = size;
+  cellSize = size/COLS;
+}
+
+function draw() {
+  drawInkBackground();
+  
+  // 绘制物品
+  for (const item of items) {
+    drawItem(item.x, item.y, item.type);
+  }
+  
+  // 绘制敌人
+  for (const enemy of enemies) {
+    drawSnake(enemy, false);
+  }
+  
+  // 绘制玩家
+  drawSnake(player, true);
+  
+  // 粒子
+  updateParticles();
+  drawParticles();
+  
+  // 游戏结束遮罩
+  if (gameOver) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#f5f0e8';
+    ctx.font = `bold ${cellSize*1.2}px "Noto Serif SC","KaiTi",serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('商道陨落', canvas.width/2, canvas.height/2-cellSize);
+    ctx.font = `${cellSize*0.5}px "Noto Serif SC",serif`;
+    ctx.fillText(`得分: ${score} | 金币: ${gold} | 击杀: ${kills}`, canvas.width/2, canvas.height/2+cellSize*0.5);
+    ctx.fillText('点击"再来一局"重新开始', canvas.width/2, canvas.height/2+cellSize*2);
+    ctx.restore();
+  } else if (!gameRunning) {
+    // 开始前提示
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#f5f0e8';
+    ctx.font = `bold ${cellSize}px "Noto Serif SC","KaiTi",serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('🐉 山海经·创业蛇王', canvas.width/2, canvas.height/2-cellSize*1.5);
+    ctx.font = `${cellSize*0.4}px "Noto Serif SC",serif`;
+    ctx.fillText('方向键/WASD 移动 · 收集客户和资源', canvas.width/2, canvas.height/2);
+    ctx.fillText('避开天劫 · 吞噬短于你的竞争对手', canvas.width/2, canvas.height/2+cellSize*0.7);
+    ctx.fillText('点击「开始」进入商道争霸', canvas.width/2, canvas.height/2+cellSize*2);
+    ctx.restore();
+  }
+  
+  if (gameRunning) requestAnimationFrame(draw);
+}
+
+// ============ 输入处理 ============
+document.addEventListener('keydown', e => {
+  const keys = {
+    ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
+    w:{x:0,y:-1}, s:{x:0,y:1}, a:{x:-1,y:0}, d:{x:1,y:0},
+    W:{x:0,y:-1}, S:{x:0,y:1}, A:{x:-1,y:0}, D:{x:1,y:0},
+  };
+  if (keys[e.key]) { setDir(keys[e.key].x, keys[e.key].y); e.preventDefault(); }
+  if (e.key===' '||e.key==='p') { togglePause(); e.preventDefault(); }
+});
+
+// 移动端触摸滑动
+let touchStart = null;
+canvas.addEventListener('touchstart', e => {
+  touchStart = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+});
+canvas.addEventListener('touchmove', e => { e.preventDefault(); });
+canvas.addEventListener('touchend', e => {
+  if (!touchStart || !gameRunning) return;
+  const end = {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY};
+  const dx = end.x-touchStart.x, dy = end.y-touchStart.y;
+  if (Math.abs(dx)<20 && Math.abs(dy)<20) return;
+  if (Math.abs(dx)>Math.abs(dy)) {
+    setDir(dx>0?1:-1, 0);
+  } else {
+    setDir(0, dy>0?1:-1);
+  }
+  touchStart = null;
+});
+
+// ============ 初始化 ============
+window.addEventListener('resize', () => { resize(); if (!gameRunning) draw(); });
+resize();
+draw();
+updateHUD();
+// 初始显示高分
+document.getElementById('highscore').textContent = highScore;
+</script>
+</body>
+</html>
