@@ -1,66 +1,48 @@
 # Snake of Mercury — AI 创业工厂 v2.0
 
 > GitHub: https://github.com/StarlitSKy88/Snake-of-Mercury
-> 引擎: Codex CLI (DeepSeek V4 Pro) | Claude SDK (Opus 4.5+)
-> 架构: Anthropic Managed Agents + Ralph Wiggum 自主循环
+> 引擎: MiniMax M2.7 (HTTP 直连) | Anthropic SDK | OpenAI 兼容 | Ollama
+> 架构: Anthropic Harness 三角 + Ralph Wiggum 自主循环
 > 定位: 输入模糊想法 → 全自动 7×24 开发迭代 → 部署上线 → 数据驱动优化
 
 ---
 
-## 一、核心架构
+## 一、当前架构状态（2026-05-12 审计结果）
+
+⚠️ **架构分裂**：项目存在两条独立的执行路径，尚未合并。
+
+### 路径 A: runHarnessLoop（主路径，`npm run harness`）
 
 ```
-                          ┌──────────────────────────────────┐
-                          │       👑 CEO Agent                │
-                          │  多项目管理 · 进度汇报 · 审批     │
-                          └──────────────┬───────────────────┘
-                                         │ EventBus
-          ┌──────────────────────────────┼──────────────────────────────┐
-          │                              │                              │
-   ┌──────▼──────┐              ┌───────▼───────┐              ┌───────▼──────┐
-   │ 🔧 DevOps   │              │  📈 Marketing  │              │  🧠 Phase 0  │
-   │ 7×24 监控   │              │ 数据+AiToEarn  │              │ 苏格拉底追问 │
-   └─────────────┘              └───────┬───────┘              └───────┬──────┘
-                                       │                              │
-                              ┌────────▼──────────────────────────────▼────────┐
-                              │          Anthropic Harness 三角                │
-                              │  ┌──────────┐  ┌──────────┐  ┌────────────┐   │
-                              │  │①Planner  │→│②Generator│→│③Evaluator  │   │
-                              │  │ 需求拆解  │  │ Sprint实现│  │ 4维硬阈值  │   │
-                              │  └──────────┘  └──────────┘  └─────┬──────┘   │
-                              │       ↑                  ↑         │ 未通过    │
-                              │       └─ 优化建议 ───────┘←────────┘ 返回修复  │
-                              └──────────────────────┬────────────────────────┘
-                                                     │ 全部通过
-                                            ┌────────▼────────┐
-                                            │   🚀 Phase 3    │
-                                            │   自动部署上线   │
-                                            └────────┬────────┘
-                                                     │
-                                            ┌────────▼────────┐
-                                            │   🔄 数据收集   │
-                                            │  Marketing Agent │→ AiToEarn 12平台
-                                            │  优化任务回Phase0│
-                                            └─────────────────┘
+harness-scheduler.ts (690行硬编码)
+├── Phase 0: executeHubDebate → debate-engine-hub.ts → phase0-debate-engine.ts (5 Agent 文件辩论)
+├── Phase 1: executePlanner() → planner-agent.ts (直接函数调用)
+├── Phase 2: RalphWiggumLoop → executeGenerator() + executeEvaluator() + executeSprintPlan()
+├── Phase 3: executePhase3Delivery() → phase3-delivery.ts
+└── 收敛: convergence-detector.ts
 ```
 
-### 闭环流程
+**特点**: Planner/Generator/Evaluator 三者之间是同一进程内的同步函数调用链，不经过任何消息总线。
+**缺失**: SwarmCoordinator 和 DevOps/Marketing Agent 虽已实例化但未参与核心调度。
+
+### 路径 B: runPipelineLoop（新路径，`npm run pipeline`）
 
 ```
-用户模糊想法
-    ↓
-Phase 0: 苏格拉底追问 → 辩论引擎 → 收敛需求文档
-    ↓
-Phase 1: Planner → 拆解为 Sprint Contract 列表
-    ↓
-Phase 2: Ralph Wiggum Loop { Generator → Evaluator → 修复 → 重验证 }
-    ↓  (50次熔断, 每Sprint 3次重试)
-Phase 3: 自动部署 → 金丝雀 → 上线
-    ↓
-数据收集 → 用户反馈 → Marketing Agent → 优化任务 → Phase 0
-    ↓
-🔄 无限循环（7×24）
+Pipeline (middleware/pipeline.ts)
+├── PlannerMiddleware → GeneratorMiddleware → EvaluatorMiddleware → DeliveryMiddleware
+├── 通过 PipelineContext 共享状态
+├── 通过 SwarmCoordinator 管理生命周期
+└── 通过 AgentMemory 持久化
 ```
+
+**特点**: 将 Agent 包装为可组合的 Middleware，解除硬编码依赖。
+**缺失**: 缺少 Phase 0 中间件，尚未替代路径 A，未经过端到端验证。
+
+### 合并方向
+
+- 短期：在 `runPipelineLoop` 中补充 Phase 0 中间件，验证端到端可运行
+- 中期：将 `npm run harness` 默认入口切换到 Pipeline 路径
+- 长期：移除 `runHarnessLoop` 硬编码版本
 
 ---
 
@@ -68,137 +50,107 @@ Phase 3: 自动部署 → 金丝雀 → 上线
 
 ### EventBus（Pub/Sub + JSONL 持久化）
 
-所有 Agent 通过 `src/event-bus.ts` 通信，**禁止 Agent 间直接调用**。
+所有 Agent 通过 `src/event-bus.ts` 通信：
 
-**原则**：
 - **发布/订阅**：Agent 发布事件，其他 Agent 订阅感兴趣的事件类型
 - **JSONL 持久化**：所有事件 append-only 写入 `event-log.jsonl`，可回溯审计
 - **松耦合**：Agent 互不感知，通过事件类型解耦
-- **上下文传递**：DeepSeek 无状态模式下，通过事件日志 + `.ralph-context.json` 传递上下文
+
+**当前实际使用范围**: EventBus 仅用于 CEO 通知（sprint 通过/失败/回滚/错误），核心三角（Planner→Generator→Evaluator）走直接函数调用。
 
 **关键事件类型**：
 
 | 事件 | 发布者 | 订阅者 | 含义 |
 |------|--------|--------|------|
-| `ceo:project_created` | CEO | DevOps, Marketing | 新项目启动 |
-| `phase:started` / `phase:completed` | Harness | CEO | 阶段切换 |
-| `sprint:contract_approved` | Evaluator | Generator | 合同评审通过 |
-| `sprint:rejected` | Evaluator | Generator, RalphLoop | 需修复重试 |
-| `devops:escalated` | DevOps | CEO | 需人工介入 |
-| `marketing:optimization_task` | Marketing | CEO → Planner | 数据驱动的优化需求 |
+| `sprint:passed` | Evaluator | CEO | Sprint 通过 |
+| `sprint:rejected` | Evaluator | CEO, Generator | Sprint 未通过 |
+| `sprint:rollback` | RollbackManager | CEO | 回滚执行 |
+| `devops:escalated` | DevOps | CEO | 故障升级 |
+| `marketing:optimization_task` | Marketing | CEO | 优化任务 |
+| `system:error` | 任意 | CEO | 系统错误 |
 
 ---
 
-## 三、Ralph Wiggum Loop（自主开发引擎）
+## 三、Ralph Wiggum Loop
 
-### 设计原则
+`src/ralph-loop.ts` 实现任务级自主循环：
 
-```
-Sprint Contract → Generator 实现 → Evaluator 评分
-                      ↑                  ↓
-                      └── 修复 ←── 未通过（≤3次重试）
-                                       ↓
-                                   全部通过 → 下一个 Sprint
-```
-
-### 核心参数
-
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| `maxIterations` | 50 | 总迭代次数熔断 |
-| `maxRetriesPerTask` | 3 | 单个 Sprint 最大重试 |
-| `contextReset` | true (DeepSeek) | 每次新 Sprint 写入 `.ralph-context.json` |
-| `contextResetInterval` | 1 | 每N个任务重置一次（DeepSeek=1，Claude=0） |
-
-### 上下文管理（DeepSeek 专用）
-
-DeepSeek V4 Pro **无状态**，每个 API 调用不携带历史。解决方案：
-1. 每次 Sprint 前写入 `.ralph-context.json`（包含已完成任务、当前目标）
-2. 通过 EventBus 的 JSONL 日志传递项目级上下文
-3. 代码变更通过 Git diff 写入 Sprint Contract 描述
-
-### 熔断规则
-
-- 单 Sprint 连续3次 Evaluator REJECTED → 标记 `failed`，跳到下一个
-- 总迭代50次 → 停止循环，通知 CEO
-- 连续10次无分数提升 → 触发 `ROLLBACK`
-- **仅以下情况暂停并通知用户**：不可逆风险、外部依赖完全失败、业务决策需求
+- **当前用途**: 包装 Phase 2 的 Sprint 执行（Generator → Evaluator → 重试）
+- **熔断**: 单任务最大迭代 50 次
+- **无进展检测**: 连续 10 次无变动则停止并报告
+- **模式**: `internal`（内存调度）/ `ralphy`（外部 CLI 调度）
 
 ---
 
-## 四、Agent 详解
+## 四、Agent 职责
 
 ### 👑 CEO Agent (`src/ceo-agent.ts`)
-- 多项目创建/追踪/汇报
-- Agent Team 组建（必选 Planner+Generator+Evaluator，可选 UI/Security/Docs）
-- 待审批事项管理（`pendingApprovals` 队列）
-- 知识库积累（patterns、decisions、anti_patterns、fixes）
-- Webhook 通知（Telegram/Discord）
+- 多项目管理（创建、状态追踪、进度汇报）
+- 审批断点管理（contract / deploy / pivot / critical_error）
+- 跨会话记忆（AgentMemory）
+- 蜂群调度（SwarmCoordinator — 已构造，待集成到主循环）
 
-### 🧠 Planner Agent (`src/planner-agent.ts`)
-- 接收 Phase 0 收敛需求 → 输出 15+ Feature 产品规格
-- 按 MoSCoW 分类（Must/Should/Could）
-- 生成 Sprint Contract 列表
-- 接收 Evaluator 优化建议 → 修正需求
+### 📋 Planner Agent (`src/planner-agent.ts`)
+- 接收 Phase 0 收敛需求 → 输出 ProductSpec（含 Sprint Plan）
+- MoSCoW 优先级排序
+- 自动拆分为 Sprint Contract 列表
 
-### 🔨 Generator Agent (`src/generator-agent.ts`)
+### 💻 Generator Agent (`src/generator-agent.ts`)
 - 接收 Sprint Contract → 实现代码
-- 通过 Codex CLI / Claude SDK 调用底层模型
-- 返回改动摘要 + 文件列表
+- 自动检测项目类型并选择最佳技术栈
+- 自评输出质量（8/10 以下自动重试）
 
 ### 🔍 Evaluator Agent (`src/evaluator-agent.ts`)
-- **4维硬阈值评分**（Anthropic 标准）：
-  - 产品深度 (35%)
-  - 用户体验 (30%)
-  - 代码质量 (20%)
-  - 安全合规 (15%)
-- 总分 < 85 → REJECTED + 具体修复建议
-- 检测 Evaluator 偏见（hallucination 检查）
+- 4 维硬阈值评分：
+  - 产品深度 (35%) / 用户体验 (30%) / 代码质量 (20%) / 安全合规 (15%)
+- 总分 < 8.0 → REJECTED + 具体修复建议
 
 ### 🔧 DevOps Agent (`src/devops-agent.ts`)
 - 7×24 健康检查循环
 - 自动修复（重启 PM2、清理磁盘、回滚部署）
 - 故障升级（无法自动修复 → CEO → 通知用户）
+- **状态**: 已实现，待集成到主循环
 
 ### 📈 Marketing Agent (`src/marketing-agent.ts`)
 - 数据收集与优化任务生成
-- **集成 AiToEarn MCP**：跨12平台内容发布与变现
+- **集成 AiToEarn MCP**：跨 12 平台内容发布与变现
 - 用户反馈 → 需求优化建议 → 回传 Phase 0
+- **状态**: 已实现，待集成到主循环
 
 ---
 
 ## 五、引擎支持
 
-| 引擎 | 后端模型 | 上下文 | 使用方式 |
-|------|----------|--------|----------|
-| **Codex CLI** | DeepSeek V4 Pro | 无状态（需显式传递） | `npm run harness:codex` |
-| Claude SDK | Claude Opus 4.5 | 有状态 | `npm run harness` |
+| 引擎 | 后端模型 | 配置 |
+|------|----------|------|
+| **minimax** | MiniMax M2.7 | `MINIMAX_API_KEY` |
+| **claude** | Anthropic SDK | `ANTHROPIC_API_KEY` |
+| **openai** | OpenAI 兼容 API | `OPENAI_API_KEY` + `OPENAI_BASE_URL` |
+| **ollama** | 本地模型 | `http://localhost:11434` |
+| **auto** | 自动选择最佳可用 | 检测环境变量 |
 
-**引擎选择逻辑**（`src/utils/agent-executor.ts`）：
-- 环境变量 `HARNESS_ENGINE=codex` → Codex CLI
-- 默认 → Claude SDK
-- 检测 `CONTEXT_RESET=true` → 启用上下文重置模式
+**引擎选择**（`src/utils/agent-executor.ts`）：
+- `HARNESS_ENGINE` 环境变量指定引擎
+- 默认 `minimax`
+- 所有引擎均通过纯 HTTP/SDK 调用，**不依赖任何外部 CLI**
 
 ---
 
-## 六、编码规范（Karpathy + 蕾姆）
+## 六、编码规范
 
-### 核心原则
+### Karpathy 编码准则
 1. **Think Before Coding**：先明确假设，不确定就问
-2. **Simplicity First**：只实现要求的功能，200行能写完不要500行
+2. **Simplicity First**：只实现要求的功能，200 行能写完不要 500 行
 3. **Surgical Changes**：只改必须改的代码，不"顺便"重构
-4. **Goal-Driven**：TDD 先行（RED→GREEN→REFACTOR）
+4. **Goal-Driven**：TDD 先行
 
 ### 自动化 Loop 规则
 1. 生成代码 → 自动验证（test/lint/build）
 2. 失败 → 自动修复 → 重新验证
 3. 连续循环直到通过，无人工干预
-4. 输出 `✅ 自动化完成`
 
 ### 禁止行为
-- ❌ 一次生成后停止
-- ❌ 忽略验证失败
-- ❌ 跳过迭代修复
+- ❌ 一次生成后停止 / 忽略验证失败 / 跳过迭代修复
 - ❌ 在循环中询问确认
 - ❌ 硬编码 secrets/API keys
 - ❌ 引擎/模型硬编码
@@ -209,57 +161,26 @@ DeepSeek V4 Pro **无状态**，每个 API 调用不携带历史。解决方案�
 
 ```bash
 # 主调度
-npm run harness -- "需求描述"              # Claude 引擎
-npm run harness:codex -- "需求描述"         # Codex 引擎 (DeepSeek V4 Pro)
+npm run harness -- "需求描述"              # 路径 A（硬编码）
+npm run pipeline -- "需求描述"             # 路径 B（中间件管道）
 
 # 质量保证
-npm run typecheck                          # TypeScript 类型检查
-npm test                                   # 运行测试 (95 tests)
-npm run test:run                           # 单次运行
-npm run test:coverage                      # 覆盖率报告
-
-# 调试
-npm run harness:debug -- "需求描述"
+npm run typecheck                          # tsc --noEmit
+npm test                                   # vitest
+npm run test:run                           # vitest run
+npm run test:coverage                      # vitest run --coverage
 ```
 
 ---
 
-## 八、目录结构
+## 八、最近清理记录（2026-05-12）
 
-```
-Snake-of-Mercury/
-├── AGENTS.md                   # ← 你在这里
-├── src/
-│   ├── harness-scheduler.ts    # 主调度器（Phase 0→1→2→3→0）
-│   ├── ceo-agent.ts            # CEO 多项目管理
-│   ├── planner-agent.ts        # 需求拆解 (Anthropic 三角①)
-│   ├── generator-agent.ts      # Sprint 实现 (Anthropic 三角②)
-│   ├── evaluator-agent.ts      # 4维评分 (Anthropic 三角③)
-│   ├── devops-agent.ts         # 运维监控
-│   ├── marketing-agent.ts      # 数据 + AiToEarn 变现
-│   ├── event-bus.ts            # Agent 通信中枢
-│   ├── ralph-loop.ts           # Ralph Wiggum 自主循环
-│   ├── phase0-questionnaire.ts # 苏格拉底追问
-│   ├── phase0-debate-engine.ts # 多Agent辩论
-│   ├── phase3-delivery.ts      # 自动部署
-│   ├── convergence-detector.ts # 收敛检测
-│   ├── rollback-manager.ts     # Git回滚
-│   ├── state-machine.ts        # 状态机
-│   ├── types.ts                # 核心类型定义
-│   ├── utils/
-│   │   ├── agent-executor.ts   # 引擎抽象层
-│   │   ├── codex-executor.ts   # Codex CLI 适配器
-│   │   └── sdk-executor.ts     # Claude SDK 适配器
-│   └── __tests__/              # 测试（95 tests）
-├── archive/                    # 历史归档
-│   ├── debates/                # 旧辩论日志
-│   └── specs/                  # 旧规格文档
-├── specs/                      # 产品规格
-├── docs/                       # 文档
-├── skills/                     # Codex Skills
-├── agents/                     # Agent 定义
-└── config/                     # 配置
-```
+已移除的死代码（零运行时影响，全部验证通过）：
+- `src/phase0-questionnaire.ts` — 467 行，无人引用
+- `src/federation/federation.ts` — 无人引用
+- `src/hub/` (4 文件) — Hub JSON-RPC 架构，仅被已移除的 debate-engine-hub 使用
+- `src/agent/process-agent.ts` — 硬编码 `claude` CLI，不兼容当前 MiniMax 引擎
+- `src/protocols/messages.ts` — JSON-RPC 2.0 协议，仅 Hub 使用
 
 ---
 
@@ -271,25 +192,10 @@ Snake-of-Mercury/
 | Vitest | 测试框架 |
 | Zod | 运行时验证 |
 | @anthropic-ai/sdk | Claude API |
-| Codex CLI | DeepSeek V4 Pro 调用 |
-| EventBus (JSONL) | Agent 通信 |
-| AiToEarn MCP | 跨平台内容变现 |
+| MiniMax HTTP API | 默认引擎 |
+| EventBus (JSONL) | Agent 通知 |
+| AgentMemory | 跨会话持久记忆 |
 
 ---
 
-## 十、Git 工作流
-
-```bash
-# 推送（GitHub Token: 已配置）
-git add . && git commit -m "feat: description" && git push
-
-# 禁止行为
-# - 不要创建新分支（统一 main）
-# - 不要 squash merge
-# - 不要 rebase 已推送的提交
-```
-
----
-
-> 版本: v2.0 | 更新: 2026-05-11
-> 遵循 Anthropic Managed Agents 架构 + Karpathy 编码准则
+> 版本: v2.1 | 更新: 2026-05-12 (架构审计 + 死代码清理)
