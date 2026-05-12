@@ -66,7 +66,7 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: APPROVED_JSON,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
@@ -75,7 +75,7 @@ describe('EvaluatorAgent', () => {
       spec: MOCK_SPEC,
       generatorOutput: 'code here',
       projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('APPROVED');
     expect(report.totalScore).toBe(9.0);
@@ -86,7 +86,7 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: REJECTED_JSON,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
@@ -95,7 +95,7 @@ describe('EvaluatorAgent', () => {
       spec: MOCK_SPEC,
       generatorOutput: 'broken code',
       projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED');
     expect(report.issues.length).toBeGreaterThan(0);
@@ -117,13 +117,13 @@ describe('EvaluatorAgent', () => {
     });
 
     mockExecuteAgent.mockResolvedValueOnce({
-      success: true, output: weakApproved, engine: 'codex', duration: 100,
+      success: true, output: weakApproved, engine: 'minimax', duration: 100,
     });
 
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED'); // 硬阈值覆盖
   });
@@ -140,13 +140,13 @@ describe('EvaluatorAgent', () => {
     });
 
     mockExecuteAgent.mockResolvedValueOnce({
-      success: true, output: lowScore, engine: 'codex', duration: 100,
+      success: true, output: lowScore, engine: 'minimax', duration: 100,
     });
 
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED');
   });
@@ -157,14 +157,14 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: '```json\n' + APPROVED_JSON + '\n```',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('APPROVED');
   });
@@ -173,14 +173,14 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: '这是一段随意的文字，不是JSON',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED');
     expect(report.issues).toContain('评估器无法解析输出，默认 REJECTED');
@@ -188,14 +188,14 @@ describe('EvaluatorAgent', () => {
 
   it('Agent执行失败应返回默认REJECTED', async () => {
     mockExecuteAgent.mockResolvedValueOnce({
-      success: false, output: '', engine: 'codex',
+      success: false, output: '', engine: 'minimax',
       error: 'timeout', duration: 100,
     });
 
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED');
   });
@@ -206,7 +206,7 @@ describe('EvaluatorAgent', () => {
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED');
     expect(report.issues[0]).toContain('Boom');
@@ -218,14 +218,14 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: 'DECISION: APPROVED\nFEEDBACK:\n- looks good',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const result = await reviewSprintContract(
       MOCK_SPRINT,
       '计数器实现合同',
-      'codex',
+      'minimax',
     );
 
     expect(result.approved).toBe(true);
@@ -235,14 +235,14 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: 'DECISION: CHANGES_REQUESTED\nFEEDBACK:\n- 缺少错误处理描述',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const result = await reviewSprintContract(
       MOCK_SPRINT,
       '不完整的合同',
-      'codex',
+      'minimax',
     );
 
     expect(result.approved).toBe(false);
@@ -252,12 +252,12 @@ describe('EvaluatorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: false,
       output: '',
-      engine: 'codex',
+      engine: 'minimax',
       error: 'timeout',
       duration: 100,
     });
 
-    const result = await reviewSprintContract(MOCK_SPRINT, '合同', 'codex');
+    const result = await reviewSprintContract(MOCK_SPRINT, '合同', 'minimax');
 
     // 降级为auto-approved（不阻塞流程）
     expect(result.approved).toBe(true);
@@ -279,13 +279,13 @@ describe('EvaluatorAgent', () => {
     });
 
     mockExecuteAgent.mockResolvedValueOnce({
-      success: true, output: scores, engine: 'codex', duration: 100,
+      success: true, output: scores, engine: 'minimax', duration: 100,
     });
 
     const report = await executeEvaluator({
       sprint: MOCK_SPRINT, spec: MOCK_SPEC,
       generatorOutput: 'code', projectDir: '/tmp/eval-test',
-    }, 'codex');
+    }, 'minimax');
 
     // codeQuality 5.0 < 7.0 硬阈值 → 强制 REJECTED
     expect(report.verdict).toBe('REJECTED');

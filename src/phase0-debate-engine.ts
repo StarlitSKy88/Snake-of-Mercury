@@ -17,12 +17,14 @@
 import { spawn } from 'child_process';
 import { writeFileSync, readFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
+import Anthropic from '@anthropic-ai/sdk';
 import type { AgentOutput, DebateResult, ProblemDefinition } from './types.js';
+import { robustSDKCall } from './utils/sdk-executor.js';
 
 // ============= 常量定义 =============
 
 const DEBATE_DIR = '.phase0-debate';
-const ROUND_TIMEOUT = 120000; // 2 分钟每轮
+const ROUND_TIMEOUT = 300000; // 5 分钟每轮（增加超时以适应 claude --print 延迟）
 
 /**
  * 辩论 Agent 列表
@@ -167,7 +169,7 @@ async function executeAgentRound1(
   const prompt = buildInsightPrompt(agentType, problem);
 
   try {
-    const output = await execClaudeCodeWithTimeout(['--print', prompt], ROUND_TIMEOUT);
+    const output = await execClaudeSDKWithTimeout(prompt, ROUND_TIMEOUT);
 
     // 解析输出
     const content = extractContent(output);
@@ -224,7 +226,7 @@ async function executeAgentRound2(
   const prompt = buildChallengesPrompt(agentType, myOutput?.content || '', otherOutputs);
 
   try {
-    const output = await execClaudeCodeWithTimeout(['--print', prompt], ROUND_TIMEOUT);
+    const output = await execClaudeSDKWithTimeout(prompt, ROUND_TIMEOUT);
     const content = extractContent(output);
     writeFileSync(outputFile, content, 'utf-8');
 
@@ -280,7 +282,7 @@ async function executeAgentRound3(
   const prompt = buildResponsesPrompt(agentType, myOutput?.content || '', myChallenges);
 
   try {
-    const output = await execClaudeCodeWithTimeout(['--print', prompt], ROUND_TIMEOUT);
+    const output = await execClaudeSDKWithTimeout(prompt, ROUND_TIMEOUT);
     const content = extractContent(output);
     writeFileSync(outputFile, content, 'utf-8');
 
@@ -326,7 +328,7 @@ ${r}
   const prompt = buildSynthesisPrompt(debateSummary);
 
   try {
-    const output = await execClaudeCodeWithTimeout(['--print', prompt], ROUND_TIMEOUT);
+    const output = await execClaudeSDKWithTimeout(prompt, ROUND_TIMEOUT);
     const content = extractContent(output);
     writeFileSync(outputFile, content, 'utf-8');
 
@@ -656,7 +658,32 @@ function parseSynthesisResult(content: string, agentOutputs: AgentOutput[]): Deb
 // ============= 工具函数 =============
 
 /**
- * 执行 Claude Code CLI 命令（带超时）
+ * 使用 Anthropic SDK 执行消息（带超时）- 使用健壮的执行器
+ */
+async function execClaudeSDKWithTimeout(prompt: string, timeout: number): Promise<string> {
+  const systemPrompt = '你是一个专业的 AI 助手，负责分析问题并给出简洁、有洞察力的回答。';
+
+  const result = await robustSDKCall(
+    systemPrompt,
+    prompt,
+    {
+      maxRetries: 3,
+      minOutputLines: 15, // 辩论输出需要至少 15 行
+      onRetry: (attempt, reason) => {
+        console.log(`[SDK Retry] 尝试 ${attempt}/3: ${reason}`);
+      }
+    }
+  );
+
+  if (!result.success) {
+    throw new Error(`SDK 执行失败: ${result.error?.message || '未知错误'} (尝试 ${result.attempts} 次)`);
+  }
+
+  return result.output;
+}
+
+/**
+ * 执行 Claude Code CLI 命令（带超时）- 仅作为备用
  */
 async function execClaudeCodeWithTimeout(args: string[], timeout: number): Promise<string> {
   return new Promise((resolve, reject) => {

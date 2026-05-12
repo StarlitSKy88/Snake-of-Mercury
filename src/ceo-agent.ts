@@ -92,7 +92,7 @@ export class CEOAgent {
   private engine: AgentEngine;
   private webhookUrl?: string;
 
-  constructor(baseDir: string, engine: AgentEngine = 'claude', webhookUrl?: string) {
+  constructor(baseDir: string, engine: AgentEngine = 'minimax', webhookUrl?: string) {
     this.baseDir = baseDir;
     this.engine = engine;
     this.webhookUrl = webhookUrl;

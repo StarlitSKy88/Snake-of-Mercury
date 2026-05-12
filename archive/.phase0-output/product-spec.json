@@ -1,0 +1,97 @@
+{
+  "overview": "「计数器工厂」是一个面向编程初学者的极简练习项目，基于 Snake of Mercury Phase 0 系统内验证的强制选择式追问机制，帮助用户在5分钟内完成第一个可交互的 Web 原型。核心价值：最小阻力验证「这是否是我想要的」，而非交付商业产品。技术栈严格遵循现有项目约束：TypeScript + Vitest，任何方案不得绕过已有架构。",
+  "featureList": {
+    "must": [
+      "计数器基本功能：递增、递减、重置",
+      "强制选择式三问收敛机制（合并为单轮）",
+      "假设性需求清单输出（带置信度标记）",
+      "独立 HTML 原型（双击即可运行）",
+      "Phase 0 系统内集成验证"
+    ],
+    "should": [
+      "计数历史记录（最后N次操作）",
+      "主题切换（明/暗模式）",
+      "键盘快捷键支持（+/−/R）",
+      "操作动画反馈"
+    ],
+    "could": [
+      "计数目标设定与进度显示",
+      "自定义计数步长",
+      "数据持久化（localStorage）",
+      "多计数器管理"
+    ]
+  },
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": ["实现计数器核心基础功能", "生成独立 HTML 原型"],
+      "acceptanceCriteria": [
+        "递增/递减/重置三个按钮可正常工作",
+        "数字显示正确更新",
+        "双击 HTML 文件可独立运行",
+        "无控制台错误"
+      ],
+      "estimatedDuration": "5-10分钟",
+      "technicalConstraints": [
+        "使用原生 JavaScript（无框架依赖）",
+        "单文件 HTML 结构",
+        "内联 CSS 和 JS"
+      ]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": ["集成强制选择式追问机制", "输出假设性需求清单"],
+      "acceptanceCriteria": [
+        "用户启动时必须先回答「颠覆式还是渐进式」",
+        "根据答案渲染对应的功能子集",
+        "未回答时使用合理默认假设推进",
+        "输出带置信度的需求假设清单"
+      ],
+      "estimatedDuration": "10-15分钟",
+      "technicalConstraints": [
+        "复用 Phase 0 的状态机逻辑",
+        "复用 phase0-questionnaire.ts 的追问模板"
+      ]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": ["完善用户体验", "Phase 0 系统集成"],
+      "acceptanceCriteria": [
+        "键盘快捷键正常工作",
+        "明/暗主题切换正常",
+        "计数历史记录功能完成",
+        "集成到 Phase 0 系统作为验证节点"
+      ],
+      "estimatedDuration": "15-20分钟",
+      "technicalConstraints": [
+        "保持与现有 state-machine.ts 的接口兼容",
+        "不修改已有测试（除非破坏）"
+      ]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": ["发布准备", "收尾与文档"],
+      "acceptanceCriteria": [
+        "完整 README 文档",
+        "Vitest 测试覆盖率 ≥ 80%",
+        "独立原型可通过双击运行",
+        "Sprint 验证报告生成"
+      ],
+      "estimatedDuration": "10-15分钟",
+      "technicalConstraints": [
+        "测试文件命名符合现有规范",
+        "输出文件放置于 .phase0-output/"
+      ]
+    }
+  ],
+  "technicalDirection": "技术方向严格遵循「不重复造轮子」原则：(1) 独立原型使用单文件 HTML + 内联 JS/CSS，验证最低阻力路径；(2) Phase 0 集成复用现有 state-machine.ts 和 phase0-questionnaire.ts，不引入新依赖；(3) 所有 TypeScript 代码必须通过现有 Vitest 测试框架验证，覆盖率门槛 80%；(4) 禁止引入任何新 npm 包，保持 zero-dependency 原型。",
+  "acceptanceStandards": [
+    "Sprint 1 原型双击可运行，无外部依赖",
+    "Sprint 2 追问机制收敛上限为 1 轮，不得无限追问",
+    "Sprint 3 集成后 Phase 0 原有测试仍全部通过",
+    "Sprint 4 覆盖率报告生成，覆盖率 ≥ 80%",
+    "所有功能变更通过 git 追踪，保留完整历史",
+    "需求假设清单必须带置信度标记（高/中/低）",
+    "颠覆式 vs 渐进式选择作为强制入口，未选择不得跳过后续流程"
+  ]
+}

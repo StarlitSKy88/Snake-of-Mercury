@@ -56,7 +56,7 @@ export interface EvaluatorInput {
  */
 export async function executeEvaluator(
   input: EvaluatorInput,
-  engine: AgentEngine = 'claude'
+  engine: AgentEngine = 'minimax'
 ): Promise<SupervisorReport> {
   console.log(`\n🔍 [Evaluator] 评估 Sprint ${input.sprint.sprintNumber}...`);
 
@@ -99,7 +99,7 @@ export async function executeEvaluator(
 export async function reviewSprintContract(
   sprint: SprintContract,
   proposedContract: string,
-  engine: AgentEngine = 'claude'
+  engine: AgentEngine = 'minimax'
 ): Promise<{ approved: boolean; feedback: string }> {
   console.log(`\n📝 [Evaluator] 审查 Sprint ${sprint.sprintNumber} Contract...`);
 

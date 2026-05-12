@@ -1,19 +1,20 @@
 /**
- * Agent Executor - 统一的 Agent 执行抽象层
+ * Agent Executor — 纯 API 驱动的 Agent 执行层
  * 
- * 设计原则（遵循 Anthropic Managed Agents 架构）：
- * - Brain (Agent) 与 Hands (Executor) 分离
- * - execute(prompt, options) → string 统一接口
- * - 引擎可独立替换，不影响上层 Harness 逻辑
+ * 不依赖任何外部 CLI。所有引擎通过 HTTP/SDK 直连模型 API。
+ * 
+ * 支持的引擎:
+ * - minimax:  MiniMax M2.7 (默认)
+ * - claude:   Anthropic SDK
+ * - openai:   任何 OpenAI 兼容 API (DeepSeek/Grok/Gemini/etc)
  */
 
-import { spawn } from 'child_process';
 import { robustSDKCall } from './sdk-executor.js';
-import { execCodex, robustCodexCall, type CodexExecutorConfig } from './codex-executor.js';
+import { robustMiniMaxCall, type MiniMaxConfig } from './minimax-executor.js';
 
 // ============= 类型 =============
 
-export type AgentEngine = 'claude' | 'codex';
+export type AgentEngine = 'minimax' | 'claude' | 'openai';
 
 export interface AgentExecutorConfig {
   engine: AgentEngine;
@@ -30,11 +31,8 @@ export interface AgentExecutionResult {
   duration: number;
 }
 
-// ============= 统一执行器 =============
+// ============= 统一入口 =============
 
-/**
- * 执行 Agent 调用（自动选择引擎）
- */
 export async function executeAgent(
   systemPrompt: string,
   userMessage: string,
@@ -44,137 +42,149 @@ export async function executeAgent(
 
   switch (config.engine) {
     case 'claude':
-      return executeClaude(systemPrompt, userMessage, config);
-    case 'codex':
-      return executeCodexAgent(systemPrompt, userMessage, config);
+      return executeClaudeSDK(systemPrompt, userMessage, config);
+    case 'minimax':
+      return executeMiniMaxRoute(systemPrompt, userMessage, config);
+    case 'openai':
+      return executeOpenAICompat(systemPrompt, userMessage, config);
     default:
       return {
-        success: false,
-        output: '',
-        engine: config.engine,
+        success: false, output: '', engine: config.engine,
         error: `Unknown engine: ${config.engine}`,
         duration: Date.now() - startTime,
       };
   }
 }
 
-/**
- * Claude 引擎执行
- */
-async function executeClaude(
-  systemPrompt: string,
-  userMessage: string,
-  config: AgentExecutorConfig
+// ============= Claude (Anthropic SDK) =============
+
+async function executeClaudeSDK(
+  systemPrompt: string, userMessage: string, config: AgentExecutorConfig
 ): Promise<AgentExecutionResult> {
   const startTime = Date.now();
-
-  // 优先使用 SDK，SDK 不可用时降级到 CLI
   try {
-    const result = await robustSDKCall(systemPrompt, userMessage, {
-      maxRetries: 2,
-    });
-
+    const result = await robustSDKCall(systemPrompt, userMessage, { maxRetries: 2 });
     return {
-      success: result.success,
-      output: result.output,
-      engine: 'claude',
-      error: result.error?.message,
+      success: result.success, output: result.output, engine: 'claude',
+      error: result.error?.message, duration: Date.now() - startTime,
+    };
+  } catch (e) {
+    return {
+      success: false, output: '', engine: 'claude',
+      error: e instanceof Error ? e.message : String(e),
       duration: Date.now() - startTime,
     };
-  } catch {
-    // 降级到 CLI
-    return executeClaudeCLI(systemPrompt, userMessage, config);
   }
 }
 
-/**
- * Claude CLI 降级执行
- */
-async function executeClaudeCLI(
-  systemPrompt: string,
-  userMessage: string,
-  config: AgentExecutorConfig
+// ============= MiniMax (HTTP 直连) =============
+
+async function executeMiniMaxRoute(
+  systemPrompt: string, userMessage: string, config: AgentExecutorConfig
 ): Promise<AgentExecutionResult> {
   const startTime = Date.now();
-  const fullPrompt = `${systemPrompt}\n\n---\n\n${userMessage}`;
-
-  return new Promise((resolve) => {
-    const proc = spawn('claude', ['-p', fullPrompt, '--dangerously-skip-permissions'], {
-      cwd: config.workdir || process.cwd(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env },
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
-    proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
-
-    const timer = setTimeout(() => {
-      proc.kill();
-      resolve({
-        success: false, output: stdout, engine: 'claude',
-        error: 'Timeout', duration: Date.now() - startTime,
-      });
-    }, config.timeout || 300000);
-
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      resolve({
-        success: code === 0,
-        output: stdout.trim(),
-        engine: 'claude',
-        error: code !== 0 ? (stderr || `Exit code ${code}`) : undefined,
-        duration: Date.now() - startTime,
-      });
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timer);
-      resolve({
-        success: false, output: stdout, engine: 'claude',
-        error: err.message, duration: Date.now() - startTime,
-      });
-    });
-  });
-}
-
-/**
- * Codex 引擎执行
- */
-async function executeCodexAgent(
-  systemPrompt: string,
-  userMessage: string,
-  config: AgentExecutorConfig
-): Promise<AgentExecutionResult> {
-  const startTime = Date.now();
-  const fullPrompt = `[System]\n${systemPrompt}\n\n[Task]\n${userMessage}`;
-
-  const result = await robustCodexCall(fullPrompt, {
-    workdir: config.workdir,
+  const result = await robustMiniMaxCall(systemPrompt, userMessage, {
     model: config.model,
     timeout: config.timeout,
-    sandboxMode: 'workspace-write',
   });
 
   return {
-    success: result.success,
-    output: result.output,
-    engine: 'codex',
-    error: result.error,
-    duration: result.duration || Date.now() - startTime,
+    success: result.success, output: result.output, engine: 'minimax',
+    error: result.error, duration: result.duration || Date.now() - startTime,
   };
 }
 
-// ============= 快速命令执行（跨引擎通用） =============
+// ============= OpenAI 兼容 API (通用 HTTP) =============
 
-/**
- * 执行 shell 命令（引擎无关）
- */
+async function executeOpenAICompat(
+  systemPrompt: string, userMessage: string, config: AgentExecutorConfig
+): Promise<AgentExecutionResult> {
+  const startTime = Date.now();
+  const apiKey = process.env.OPENAI_API_KEY;
+  const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+  const model = config.model || process.env.OPENAI_MODEL || 'gpt-4o';
+
+  if (!apiKey) {
+    return {
+      success: false, output: '', engine: 'openai',
+      error: 'OPENAI_API_KEY not set',
+      duration: Date.now() - startTime,
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = config.timeout || 300000;
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        max_tokens: 32000,
+        temperature: 0.7,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      return {
+        success: false, output: '', engine: 'openai',
+        error: `HTTP ${response.status}: ${errText.slice(0, 200)}`,
+        duration: Date.now() - startTime,
+      };
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    const content = data.choices?.[0]?.message?.content || '';
+
+    return {
+      success: true, output: content.trim(), engine: 'openai',
+      duration: Date.now() - startTime,
+    };
+
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      success: false, output: '', engine: 'openai',
+      error: msg.includes('abort') ? `OpenAI timeout after ${timeout}ms` : msg,
+      duration: Date.now() - startTime,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ============= 引擎检测 =============
+
+export async function detectAvailableEngines(): Promise<AgentEngine[]> {
+  const available: AgentEngine[] = [];
+
+  if (process.env.MINIMAX_API_KEY) available.push('minimax');
+  if (process.env.ANTHROPIC_API_KEY) available.push('claude');
+  if (process.env.OPENAI_API_KEY) available.push('openai');
+
+  return available.length > 0 ? available : ['minimax']; // 默认 fallback
+}
+
+// ============= Shell 命令执行 (非 AI，纯工具) =============
+
+import { spawn } from 'child_process';
+
 export function execCommand(
-  cmd: string,
-  args: string[],
+  cmd: string, args: string[],
   options: { cwd?: string; timeout?: number } = {}
 ): Promise<{ success: boolean; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
@@ -182,49 +192,20 @@ export function execCommand(
       cwd: options.cwd || process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-
-    let stdout = '';
-    let stderr = '';
-
+    let stdout = '', stderr = '';
     proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
     proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
-
     const timer = setTimeout(() => {
       proc.kill();
       resolve({ success: false, stdout, stderr: 'Timeout' });
     }, options.timeout || 60000);
-
     proc.on('close', (code) => {
       clearTimeout(timer);
       resolve({ success: code === 0, stdout: stdout.trim(), stderr: stderr.trim() });
     });
-
     proc.on('error', (err) => {
       clearTimeout(timer);
       resolve({ success: false, stdout, stderr: err.message });
     });
   });
-}
-
-// ============= 引擎检测 =============
-
-/**
- * 检测可用的 Agent 引擎
- */
-export async function detectAvailableEngines(): Promise<AgentEngine[]> {
-  const available: AgentEngine[] = [];
-
-  // 检测 Claude
-  try {
-    const r = await execCommand('claude', ['--version'], { timeout: 5000 });
-    if (r.success) available.push('claude');
-  } catch { /* not available */ }
-
-  // 检测 Codex
-  try {
-    const r = await execCommand('codex', ['--version'], { timeout: 5000 });
-    if (r.success) available.push('codex');
-  } catch { /* not available */ }
-
-  return available;
 }

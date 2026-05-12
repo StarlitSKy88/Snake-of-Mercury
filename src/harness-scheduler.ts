@@ -433,7 +433,7 @@ async function executePhase2(
 
   // 初始化 Ralph Wiggum Loop（任务级循环）
   // 检测模型是否需要 context reset（DeepSeek 等非 Opus 模型建议开启）
-  const needsContextReset = engine === 'codex' ||
+  const needsContextReset = false ||
     (process.env.HARNESS_MODEL || '').toLowerCase().includes('deepseek') ||
     process.env.CONTEXT_RESET === 'true';
 

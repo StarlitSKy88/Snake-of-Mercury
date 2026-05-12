@@ -19,7 +19,7 @@ import { tmpdir } from 'os';
 vi.mock('../utils/agent-executor.js', () => ({
   executeAgent: vi.fn(),
   execCommand: vi.fn(),
-  detectAvailableEngines: vi.fn(async () => ['codex']),
+  detectAvailableEngines: vi.fn(async () => ['minimax']),
 }));
 
 import { executeAgent } from '../utils/agent-executor.js';
@@ -52,10 +52,10 @@ const REVIEW_OK = 'DECISION: APPROVED\nFEEDBACK:\n- good';
 
 // Helper: setup 4 mocks for one sprint (contract+review+generator+evaluator)
 function mockOneSprintPass() {
-  mockEA.mockResolvedValueOnce({ success:true, output:CONTRACT, engine:'codex', duration:50 });
-  mockEA.mockResolvedValueOnce({ success:true, output:REVIEW_OK, engine:'codex', duration:50 });
-  mockEA.mockResolvedValueOnce({ success:true, output:GEN_OUT, engine:'codex', duration:100 });
-  mockEA.mockResolvedValueOnce({ success:true, output:EVAL_OK, engine:'codex', duration:100 });
+  mockEA.mockResolvedValueOnce({ success:true, output:CONTRACT, engine:'minimax', duration:50 });
+  mockEA.mockResolvedValueOnce({ success:true, output:REVIEW_OK, engine:'minimax', duration:50 });
+  mockEA.mockResolvedValueOnce({ success:true, output:GEN_OUT, engine:'minimax', duration:100 });
+  mockEA.mockResolvedValueOnce({ success:true, output:EVAL_OK, engine:'minimax', duration:100 });
 }
 
 describe('E2E Dry-Run', () => {
@@ -67,7 +67,7 @@ describe('E2E Dry-Run', () => {
     vi.clearAllMocks();
     dir = tmpDir();
     eventBus = new EventBus(dir);
-    ceo = new CEOAgent(dir, 'codex');
+    ceo = new CEOAgent(dir, 'minimax');
   });
 
   afterEach(() => {
@@ -75,9 +75,9 @@ describe('E2E Dry-Run', () => {
   });
 
   it('Phase 1: Planner 生成产品规格', async () => {
-    mockEA.mockResolvedValueOnce({ success:true, output:PLANNER_JSON, engine:'codex', duration:100 });
+    mockEA.mockResolvedValueOnce({ success:true, output:PLANNER_JSON, engine:'minimax', duration:100 });
 
-    const r = await executePlanner({ originalRequirement:'计数器', projectDir:dir }, 'codex');
+    const r = await executePlanner({ originalRequirement:'计数器', projectDir:dir }, 'minimax');
     expect(r.success).toBe(true);
     expect(r.spec.sprintPlan.length).toBeGreaterThanOrEqual(3);
   });
@@ -96,18 +96,18 @@ describe('E2E Dry-Run', () => {
     mockOneSprintPass(); // sprint 2
 
     const loop = new RalphWiggumLoop({
-      mode:'internal', engine:'codex', projectDir:dir, maxIterations:50, maxRetriesPerTask:3, eventBus,
+      mode:'internal', engine:'minimax', projectDir:dir, maxIterations:50, maxRetriesPerTask:3, eventBus,
     });
 
     loop.initTasks(spec.sprintPlan);
 
     const r = await loop.run(
       async (sprint, _retry, _lastErr) => {
-        await negotiateSprintContract(sprint, spec, 'codex');
-        await reviewSprintContract(sprint, CONTRACT, 'codex');
-        const g = await executeGenerator({ sprint, spec, projectDir:dir }, 'codex');
+        await negotiateSprintContract(sprint, spec, 'minimax');
+        await reviewSprintContract(sprint, CONTRACT, 'minimax');
+        const g = await executeGenerator({ sprint, spec, projectDir:dir }, 'minimax');
         if (!g.success) return { passed:false, error:'gen fail' };
-        const report = await executeEvaluator({ sprint, spec, generatorOutput:g.output, projectDir:dir }, 'codex');
+        const report = await executeEvaluator({ sprint, spec, generatorOutput:g.output, projectDir:dir }, 'minimax');
         return report.verdict === 'APPROVED' ? { passed:true, report } : { passed:false, error:report.issues.join(';'), report };
       },
       (n) => spec.sprintPlan.find(s => s.sprintNumber === n)
@@ -125,31 +125,31 @@ describe('E2E Dry-Run', () => {
     };
 
     // Sprint 1: contract+review+gen OK → eval REJECTED → retry: gen OK → eval APPROVED
-    mockEA.mockResolvedValueOnce({ success:true, output:CONTRACT, engine:'codex', duration:50 });
-    mockEA.mockResolvedValueOnce({ success:true, output:REVIEW_OK, engine:'codex', duration:50 });
-    mockEA.mockResolvedValueOnce({ success:true, output:GEN_OUT, engine:'codex', duration:100 });
-    mockEA.mockResolvedValueOnce({ success:true, output:'{"verdict":"REJECTED","totalScore":5.0,"dimensionScores":{"productDepth":5,"userExperience":5,"codeQuality":5,"security":5},"issues":["bug1"]}', engine:'codex', duration:100 });
+    mockEA.mockResolvedValueOnce({ success:true, output:CONTRACT, engine:'minimax', duration:50 });
+    mockEA.mockResolvedValueOnce({ success:true, output:REVIEW_OK, engine:'minimax', duration:50 });
+    mockEA.mockResolvedValueOnce({ success:true, output:GEN_OUT, engine:'minimax', duration:100 });
+    mockEA.mockResolvedValueOnce({ success:true, output:'{"verdict":"REJECTED","totalScore":5.0,"dimensionScores":{"productDepth":5,"userExperience":5,"codeQuality":5,"security":5},"issues":["bug1"]}', engine:'minimax', duration:100 });
 
     // retry: gen+eval (no contract re-negotiation in retry because lastError is set)
     // wait, the e2e callback always re-negotiates. Let me adjust.
-    mockEA.mockResolvedValueOnce({ success:true, output:CONTRACT, engine:'codex', duration:50 });
-    mockEA.mockResolvedValueOnce({ success:true, output:REVIEW_OK, engine:'codex', duration:50 });
-    mockEA.mockResolvedValueOnce({ success:true, output:GEN_OUT, engine:'codex', duration:100 });
-    mockEA.mockResolvedValueOnce({ success:true, output:EVAL_OK, engine:'codex', duration:100 });
+    mockEA.mockResolvedValueOnce({ success:true, output:CONTRACT, engine:'minimax', duration:50 });
+    mockEA.mockResolvedValueOnce({ success:true, output:REVIEW_OK, engine:'minimax', duration:50 });
+    mockEA.mockResolvedValueOnce({ success:true, output:GEN_OUT, engine:'minimax', duration:100 });
+    mockEA.mockResolvedValueOnce({ success:true, output:EVAL_OK, engine:'minimax', duration:100 });
 
     const loop = new RalphWiggumLoop({
-      mode:'internal', engine:'codex', projectDir:dir, maxIterations:50, maxRetriesPerTask:3, eventBus,
+      mode:'internal', engine:'minimax', projectDir:dir, maxIterations:50, maxRetriesPerTask:3, eventBus,
     });
 
     loop.initTasks(spec.sprintPlan);
 
     const r = await loop.run(
       async (sprint, _retry, _lastErr) => {
-        await negotiateSprintContract(sprint, spec, 'codex');
-        await reviewSprintContract(sprint, CONTRACT, 'codex');
-        const g = await executeGenerator({ sprint, spec, projectDir:dir }, 'codex');
+        await negotiateSprintContract(sprint, spec, 'minimax');
+        await reviewSprintContract(sprint, CONTRACT, 'minimax');
+        const g = await executeGenerator({ sprint, spec, projectDir:dir }, 'minimax');
         if (!g.success) return { passed:false, error:'gen fail' };
-        const report = await executeEvaluator({ sprint, spec, generatorOutput:g.output, projectDir:dir }, 'codex');
+        const report = await executeEvaluator({ sprint, spec, generatorOutput:g.output, projectDir:dir }, 'minimax');
         return report.verdict === 'APPROVED' ? { passed:true, report } : { passed:false, error:report.issues.join(';'), report };
       },
       (n) => spec.sprintPlan.find(s => s.sprintNumber === n)
@@ -168,7 +168,7 @@ describe('E2E Dry-Run', () => {
       lastUpdated: new Date().toISOString(),
     };
 
-    const r = await executePhase3Delivery(state, dir, { engine:'codex' });
+    const r = await executePhase3Delivery(state, dir, { engine:'minimax' });
     expect(r.deployment.success).toBe(true);
     expect(r.deployment.deployedUrl).toBe('local://development');
     expect(existsSync(join(dir, '.phase3-output', 'delivery-result.json'))).toBe(true);
@@ -180,8 +180,8 @@ describe('E2E Dry-Run', () => {
     expect(proj.status).toBe('ideation');
 
     // 2. Planner
-    mockEA.mockResolvedValueOnce({ success:true, output:PLANNER_JSON, engine:'codex', duration:100 });
-    const plan = await executePlanner({ originalRequirement:proj.description, projectDir:dir }, 'codex');
+    mockEA.mockResolvedValueOnce({ success:true, output:PLANNER_JSON, engine:'minimax', duration:100 });
+    const plan = await executePlanner({ originalRequirement:proj.description, projectDir:dir }, 'minimax');
     expect(plan.success).toBe(true);
     const spec = plan.spec;
     ceo.updateProject(proj.id, { status:'planning', totalSprints:spec.sprintPlan.length });
@@ -190,17 +190,17 @@ describe('E2E Dry-Run', () => {
     for (const _ of spec.sprintPlan) mockOneSprintPass();
 
     const loop = new RalphWiggumLoop({
-      mode:'internal', engine:'codex', projectDir:dir, maxIterations:50, maxRetriesPerTask:3, eventBus, projectId:proj.id,
+      mode:'internal', engine:'minimax', projectDir:dir, maxIterations:50, maxRetriesPerTask:3, eventBus, projectId:proj.id,
     });
     loop.initTasks(spec.sprintPlan);
 
     const lr = await loop.run(
       async (sprint, _retry, _lastErr) => {
-        await negotiateSprintContract(sprint, spec, 'codex');
-        await reviewSprintContract(sprint, CONTRACT, 'codex');
-        const g = await executeGenerator({ sprint, spec, projectDir:dir }, 'codex');
+        await negotiateSprintContract(sprint, spec, 'minimax');
+        await reviewSprintContract(sprint, CONTRACT, 'minimax');
+        const g = await executeGenerator({ sprint, spec, projectDir:dir }, 'minimax');
         if (!g.success) return { passed:false, error:'gen fail' };
-        const report = await executeEvaluator({ sprint, spec, generatorOutput:g.output, projectDir:dir }, 'codex');
+        const report = await executeEvaluator({ sprint, spec, generatorOutput:g.output, projectDir:dir }, 'minimax');
         return report.verdict === 'APPROVED' ? { passed:true, report } : { passed:false, error:report.issues.join(';'), report };
       },
       (n) => spec.sprintPlan.find(s => s.sprintNumber === n)
@@ -219,7 +219,7 @@ describe('E2E Dry-Run', () => {
       lastUpdated:new Date().toISOString(),
     };
 
-    const delivery = await executePhase3Delivery(state, dir, { engine:'codex' });
+    const delivery = await executePhase3Delivery(state, dir, { engine:'minimax' });
     expect(delivery.deployment.success).toBe(true);
     ceo.updateProject(proj.id, { status:'deployed' });
 

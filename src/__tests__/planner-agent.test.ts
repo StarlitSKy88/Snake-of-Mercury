@@ -45,14 +45,14 @@ describe('PlannerAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: VALID_SPEC_JSON,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const result = await executePlanner({
       originalRequirement: '做一个计数器',
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(true);
     expect(result.spec.featureList.must.length).toBeGreaterThanOrEqual(3);
@@ -64,7 +64,7 @@ describe('PlannerAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: false,
       output: '',
-      engine: 'codex',
+      engine: 'minimax',
       error: 'API Error',
       duration: 100,
     });
@@ -72,7 +72,7 @@ describe('PlannerAgent', () => {
     const result = await executePlanner({
       originalRequirement: '计数器',
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(false);
     expect(result.spec.featureList.must).toHaveLength(1);
@@ -83,14 +83,14 @@ describe('PlannerAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: '```json\n' + VALID_SPEC_JSON + '\n```',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const result = await executePlanner({
       originalRequirement: '计数器',
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(true);
     expect(result.spec.featureList.must.length).toBeGreaterThanOrEqual(3);
@@ -110,14 +110,14 @@ describe('PlannerAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: shortSpec,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const result = await executePlanner({
       originalRequirement: '简单应用',
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.spec.sprintPlan.length).toBeGreaterThanOrEqual(3);
   });
@@ -126,7 +126,7 @@ describe('PlannerAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: VALID_SPEC_JSON,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
@@ -141,7 +141,7 @@ describe('PlannerAgent', () => {
         finalDecisions: ['使用 localStorage 持久化', '支持键盘快捷键'],
       },
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(true);
   });
@@ -152,7 +152,7 @@ describe('PlannerAgent', () => {
     const result = await executePlanner({
       originalRequirement: '计数器',
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(false);
     expect(result.spec.overview).toBe('计数器'); // fallback preserves requirement
@@ -162,14 +162,14 @@ describe('PlannerAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: VALID_SPEC_JSON,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
     const result = await executePlanner({
       originalRequirement: '计数器',
       projectDir: '/tmp/test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.spec.featureList.must).toBeDefined();
     expect(result.spec.featureList.should).toBeDefined();

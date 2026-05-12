@@ -90,7 +90,7 @@ export class MarketingAgent {
 
   constructor(
     baseDir: string,
-    engine: AgentEngine = 'claude',
+    engine: AgentEngine = 'minimax',
     onTaskGenerated?: (task: OptimizationTask) => void
   ) {
     this.baseDir = baseDir;

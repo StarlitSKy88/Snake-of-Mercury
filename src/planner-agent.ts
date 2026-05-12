@@ -39,7 +39,7 @@ export interface PlannerOutput {
  */
 export async function executePlanner(
   input: PlannerInput,
-  engine: AgentEngine = 'claude'
+  engine: AgentEngine = 'minimax'
 ): Promise<PlannerOutput> {
   console.log('\n📋 [Planner] 生成产品规格...\n');
 

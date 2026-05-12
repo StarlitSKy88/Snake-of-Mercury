@@ -66,7 +66,7 @@ describe('RalphWiggumLoop', () => {
   it('应该正确初始化任务列表', () => {
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,
@@ -84,7 +84,7 @@ describe('RalphWiggumLoop', () => {
   it('任务一次通过应标记为 passed', async () => {
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,
@@ -107,7 +107,7 @@ describe('RalphWiggumLoop', () => {
   it('任务失败后应重试', async () => {
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 3,
@@ -136,7 +136,7 @@ describe('RalphWiggumLoop', () => {
   it('超过最大重试次数应标记为 failed', async () => {
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,
@@ -161,7 +161,7 @@ describe('RalphWiggumLoop', () => {
 
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 3, // 3次就断
       maxRetriesPerTask: 1,
@@ -184,7 +184,7 @@ describe('RalphWiggumLoop', () => {
   it('进度应持久化到文件，支持断点续跑', async () => {
     const loop1 = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,
@@ -201,7 +201,7 @@ describe('RalphWiggumLoop', () => {
     // 新建 loop 从文件恢复
     const loop2 = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,
@@ -217,7 +217,7 @@ describe('RalphWiggumLoop', () => {
   it('contextReset=true 时应写入 .ralph-context.json', async () => {
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,
@@ -251,7 +251,7 @@ describe('RalphWiggumLoop', () => {
 
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 50,
       maxRetriesPerTask: 2,
@@ -280,7 +280,7 @@ describe('RalphWiggumLoop', () => {
   it('getProgress 应返回格式化的进度字符串', () => {
     const loop = new RalphWiggumLoop({
       mode: 'internal',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 50,
       maxRetriesPerTask: 3,
@@ -299,7 +299,7 @@ describe('RalphWiggumLoop', () => {
   it('mode=ralphy 时不走 internal 流程', () => {
     const loop = new RalphWiggumLoop({
       mode: 'ralphy',
-      engine: 'codex',
+      engine: 'minimax',
       projectDir: dir,
       maxIterations: 10,
       maxRetriesPerTask: 2,

@@ -65,7 +65,7 @@ export class DevOpsAgent {
 
   constructor(
     baseDir: string,
-    engine: AgentEngine = 'claude',
+    engine: AgentEngine = 'minimax',
     onEscalate?: (incident: Incident) => void
   ) {
     this.baseDir = baseDir;

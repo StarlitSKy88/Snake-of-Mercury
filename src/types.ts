@@ -1,3 +1,4 @@
+import type { AgentEngine } from './utils/agent-executor.js';
 /**
  * Snake-of-Mercury 类型定义
  * 核心类型系统定义
@@ -222,7 +223,7 @@ export interface HarnessConfig {
   projectDir: string;
   maxIterations: number;
   model?: string;
-  engine?: 'claude' | 'codex';
+  engine?: AgentEngine;
   autoDeploy?: boolean;
 }
 

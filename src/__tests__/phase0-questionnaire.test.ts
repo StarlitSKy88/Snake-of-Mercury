@@ -265,4 +265,122 @@ describe('Phase 0 追问收敛模块', () => {
       }
     });
   });
+
+  describe('generateProblemDefinition 扩展覆盖', () => {
+    it('应包含 riskAssumptions 到证据假设中', () => {
+      const state = createInitialQuestionnaireState('测试需求');
+      state.riskAssumptions = ['市场接受度不确定', '技术实现难度不确定'];
+
+      const problemDef = generateProblemDefinition(state);
+
+      expect(problemDef.evidenceAndAssumptions).toEqual(['市场接受度不确定', '技术实现难度不确定']);
+    });
+
+    it('应使用默认的 successCriteria 和 scopeBoundaries', () => {
+      const state = createInitialQuestionnaireState('测试需求');
+
+      const problemDef = generateProblemDefinition(state);
+
+      expect(problemDef.successCriteria).toEqual(['功能完整', '可正常运行']);
+      expect(problemDef.scopeBoundaries).toEqual({ inScope: [], outOfScope: [] });
+      expect(problemDef.prototypePlan).toBe('待规划');
+    });
+  });
+
+  describe('mapToInnovationType 未知类型处理', () => {
+    it('应处理无法识别的创新类型', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      // 使用无法识别的选项触发 unknown
+      state = processUserResponse(state, '无所谓颠覆还是渐进');
+
+      expect(state.innovationType).toBe('unknown');
+    });
+  });
+
+  describe('mapToDecisionBlocker 未知卡点处理', () => {
+    it('应处理无法识别的决策卡点', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      state = processUserResponse(state, '颠覆式改变游戏规则');
+      // 使用无法识别的选项触发 unknown
+      state = processUserResponse(state, '我只是随便问问');
+
+      expect(state.decisionBlocker).toBe('unknown');
+    });
+
+    it('未知卡点应返回综合探索模板', () => {
+      const template = getBlockerSpecificTemplate('unknown');
+      expect(template.focus).toBe('综合探索');
+    });
+  });
+
+  describe('processUserResponse 后续字段处理', () => {
+    it('应正确处理问题定义字段', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      state = processUserResponse(state, '颠覆式改变游戏规则');
+      state = processUserResponse(state, '需求不清晰，不知道要做成什么样');
+      // 完成前两个字段后，进入后续追问
+      state = processUserResponse(state, '提高效率，减少人力成本');
+
+      expect(state.problemDefinition).toBe('提高效率，减少人力成本');
+    });
+
+    it('应正确处理 jtbd 字段', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      state = processUserResponse(state, '颠覆式改变游戏规则');
+      state = processUserResponse(state, '需求不清晰');
+      state = processUserResponse(state, '提高效率，减少人力成本');
+      // 继续处理 jtbd
+      state = processUserResponse(state, '企业内部员工，用于日常工作');
+
+      expect(state.jtbd).toBe('企业内部员工，用于日常工作');
+    });
+
+    it('应正确处理 alternatives 字段', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      state = processUserResponse(state, '颠覆式改变游戏规则');
+      state = processUserResponse(state, '需求不清晰');
+      state = processUserResponse(state, '提高效率，减少人力成本');
+      state = processUserResponse(state, '企业内部员工，用于日常工作');
+      state = processUserResponse(state, '使用开源工具或免费软件');
+
+      expect(state.alternatives).toBe('使用开源工具或免费软件');
+    });
+
+    it('应正确处理 riskAssumptions 字段', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      state = processUserResponse(state, '颠覆式改变游戏规则');
+      state = processUserResponse(state, '需求不清晰');
+      state = processUserResponse(state, '提高效率');
+      state = processUserResponse(state, '企业内部员工');
+      state = processUserResponse(state, '使用开源工具');
+      // riskAssumptions 可以接受多个选项
+      state = processUserResponse(state, '市场接受度不确定');
+      state = processUserResponse(state, '技术实现难度不确定');
+
+      expect(state.riskAssumptions).toContain('市场接受度不确定');
+      expect(state.riskAssumptions).toContain('技术实现难度不确定');
+    });
+  });
+
+  describe('getNextQuestion 后续轮次', () => {
+    it('应在完成前两问后进入后续追问', () => {
+      let state = createInitialQuestionnaireState('测试需求');
+      state = processUserResponse(state, '颠覆式改变游戏规则');
+      state = processUserResponse(state, '需求不清晰，不知道要做成什么样');
+
+      const question = getNextQuestion(state);
+
+      expect(question.fieldUpdated).toBe('problemDefinition');
+    });
+  });
+
+  describe('getQuestionnaireProgress 完整测试', () => {
+    it('应在有 empty 字段时显示高亮', () => {
+      const state = createInitialQuestionnaireState('测试需求');
+      const progress = getQuestionnaireProgress(state);
+
+      // 所有字段都是 empty，应该显示多个高亮
+      expect(progress).toContain('[高亮]');
+    });
+  });
 });

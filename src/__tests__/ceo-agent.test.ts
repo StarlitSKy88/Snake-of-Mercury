@@ -25,7 +25,7 @@ describe('CEOAgent', () => {
   let ceo: CEOAgent;
   let dir: string;
 
-  beforeEach(() => { dir = tmpDir(); ceo = new CEOAgent(dir, 'codex'); });
+  beforeEach(() => { dir = tmpDir(); ceo = new CEOAgent(dir, 'minimax'); });
   afterEach(() => { if (existsSync(dir)) rmSync(dir, { recursive: true, force: true }); });
 
   // ========== 项目管理 ==========
@@ -36,7 +36,7 @@ describe('CEOAgent', () => {
     expect(project.id).toMatch(/^proj-/);
     expect(project.name).toBe('Counter App');
     expect(project.status).toBe('ideation');
-    expect(project.engine).toBe('codex');
+    expect(project.engine).toBe('minimax');
     expect(project.team?.planner).toBe(true);
     expect(project.team?.generator).toBe(true);
     expect(project.team?.evaluator).toBe(true);
@@ -215,7 +215,7 @@ describe('CEOAgent', () => {
     ceo.recordKnowledge('proj-persist', 'pattern', '持久化知识', 'test');
 
     // 新建 CEO 实例从文件加载
-    const ceo2 = new CEOAgent(dir, 'codex');
+    const ceo2 = new CEOAgent(dir, 'minimax');
     const projects = ceo2.listProjects();
 
     expect(projects).toHaveLength(1);

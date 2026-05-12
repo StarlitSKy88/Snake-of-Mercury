@@ -1,0 +1,137 @@
+{
+  "overview": "Snake of Mercury 是一个基于苏格拉底式追问机制的产品规划 AI 助手，帮助用户在信息不充分的条件下通过强制选择式提问在3轮内快速收敛产品方向。当前 Sprint 1 已完成 Phase 0 追问收敛模块的核心实现。",
+
+  "featureList": {
+    "must": [
+      "Phase 0 追问引擎 - 强制选择式提问，六字段状态机",
+      "创新类型判断节点 - 第一轮必须问'颠覆式还是渐进式'",
+      "决策卡点定位器 - 第二轮问'最大卡点是什么'，收敛到需求/技术/商业/规模化四维度",
+      "Phase 1 规格文档生成器 - 根据收敛结果自动生成产品规划",
+      "状态持久化 - HarnessState 管理与状态文件读写",
+      "基础测试覆盖 - Vitest 单元测试"
+    ],
+    "should": [
+      "Phase 1 多视角辩论引擎 - 5个 Agent 从不同角度分析需求",
+      "收敛检测器 - 判断是否达到输出条件",
+      "回滚管理器 - 支持迭代回滚",
+      "产品经理 Agent - 生成 featureList 和 sprintPlan",
+      "架构师 Agent - 输出技术方向和约束",
+      "增强型追问模板 - 根据决策卡点类型选择对应追问模板"
+    ],
+    "could": [
+      "Phase 2 自动代码生成 - 基于规格生成基础代码框架",
+      "Phase 3 自动部署 - CI/CD 集成",
+      "Canary 部署监控 - 部署后健康检查",
+      "多语言支持 - 中文/英文界面",
+      "交互式 CLI 界面 - 实时问答交互",
+      "导出功能 - 支持导出 Markdown/JSON 格式规格文档"
+    ]
+  },
+
+  "sprintPlan": [
+    {
+      "sprintNumber": 1,
+      "objectives": [
+        "完成 Phase 0 追问收敛模块",
+        "实现六字段状态机",
+        "实现创新类型判断节点",
+        "实现决策卡点定位器",
+        "达到 80% 测试覆盖率"
+      ],
+      "acceptanceCriteria": [
+        "用户输入任意模糊念头，系统第一轮必须问'颠覆式还是渐进式'",
+        "未问创新类型判断问题，系统拒绝输出任何分析结论",
+        "决策卡点定位后，能根据卡点类型选择对应追问模板",
+        "六字段状态机正确管理进度",
+        "全部测试通过"
+      ],
+      "estimatedDuration": "2-3 小时",
+      "technicalConstraints": [
+        "使用 TypeScript",
+        "使用 Zod 做输入验证",
+        "不依赖外部 AI API（纯逻辑实现）"
+      ]
+    },
+    {
+      "sprintNumber": 2,
+      "objectives": [
+        "实现 Phase 1 产品规划生成器",
+        "实现多视角辩论引擎",
+        "实现收敛检测器",
+        "实现回滚管理器"
+      ],
+      "acceptanceCriteria": [
+        "根据 Phase 0 收敛结果自动生成 ProductSpec JSON",
+        "5 个 Agent 视角能独立分析并输出观点",
+        "收敛检测器能正确判断是否达到停止条件",
+        "回滚管理器能保存和恢复历史状态",
+        "featureList 和 sprintPlan 格式符合类型定义"
+      ],
+      "estimatedDuration": "3-4 小时",
+      "technicalConstraints": [
+        "使用 @anthropic-ai/sdk 调用 Claude API",
+        "支持 phase0-debate-engine 多 Agent 协作",
+        "状态文件格式兼容 HarnessState"
+      ]
+    },
+    {
+      "sprintNumber": 3,
+      "objectives": [
+        "完善 Phase 1 辩论收敛算法",
+        "实现 phase1-planner Agent",
+        "实现 phase1-architect Agent",
+        "增强收敛检测逻辑"
+      ],
+      "acceptanceCriteria": [
+        "辩论结果能收敛到共同点和关键分歧",
+        "ProductSpec 输出包含完整的 featureList 和 4 个 Sprint",
+        "每个 Sprint 有独立的 objectives 和 acceptanceCriteria",
+        "技术方向描述清晰可执行",
+        "验收标准可量化可测试"
+      ],
+      "estimatedDuration": "3-4 小时",
+      "technicalConstraints": [
+        "ProductSpec 类型必须符合 src/types.ts 定义",
+        "Sprint 规划遵循 MVP 原则",
+        "确保向后兼容 Phase 0 状态"
+      ]
+    },
+    {
+      "sprintNumber": 4,
+      "objectives": [
+        "完善文档和类型定义",
+        "优化错误处理",
+        "准备 Phase 2 接口",
+        "CI/CD 配置"
+      ],
+      "acceptanceCriteria": [
+        "所有公共函数有完整类型签名",
+        "错误消息友好且不泄露敏感信息",
+        "Phase 1 输出可直接传递给 Phase 2",
+        "包含 README 和使用示例",
+        "Vitest 测试覆盖达到 80% 以上"
+      ],
+      "estimatedDuration": "2-3 小时",
+      "technicalConstraints": [
+        "遵循 TypeScript 编码规范",
+        "无 console.log 在生产代码",
+        "使用 Zod 做所有外部输入验证"
+      ]
+    }
+  ],
+
+  "technicalDirection": "基于 TypeScript + Node.js 构建，采用模块化架构。Phase 0 使用状态机模式管理追问流程，Phase 1 使用多 Agent 辩论模式收敛需求。核心依赖：@anthropic-ai/sdk（Claude API）、Zod（验证）、Vitest（测试）。数据流：用户输入 → Phase 0 追问收敛 → Phase 1 规划生成 → 输出 ProductSpec。状态管理使用文件持久化，JSON 格式存储于 .harness-state.json。",
+
+  "acceptanceStandards": [
+    "Phase 0 必须在第一轮问'颠覆式还是渐进式'，未问此问题不能输出结论",
+    "Phase 1 生成的 ProductSpec 必须包含至少 4 个 Sprint",
+    "每个 Sprint 必须是独立可交付单元",
+    "Sprint 1 为核心功能可运行版本，遵循 MVP 原则",
+    "所有公共 API 函数必须有类型签名和文档注释",
+    "Vitest 测试覆盖率 >= 80%",
+    "输入验证使用 Zod，外部输入必须验证后使用",
+    "错误处理：每层显式处理，不静默吞掉错误",
+    "状态持久化：HarnessState 必须序列化到 .harness-state.json",
+    "不硬编码任何密钥或敏感信息"
+  ]
+}

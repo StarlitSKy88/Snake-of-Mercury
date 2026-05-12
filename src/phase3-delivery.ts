@@ -31,7 +31,7 @@ export interface Phase3Config {
 // ============= Ship 部署 =============
 
 export async function executeShip(
-  projectDir: string, engine: AgentEngine = 'claude', autoConfirm: boolean = true
+  projectDir: string, engine: AgentEngine = 'minimax', autoConfirm: boolean = true
 ): Promise<DeploymentResult> {
   console.log('[Phase 3] 执行 ship 部署...');
   const timestamp = new Date().toISOString();
@@ -56,7 +56,7 @@ export async function executeShip(
 
 export async function executeCanary(
   projectDir: string, deployedUrl: string,
-  engine: AgentEngine = 'claude', durationMinutes: number = 5
+  engine: AgentEngine = 'minimax', durationMinutes: number = 5
 ): Promise<CanaryReport> {
   console.log('[Phase 3] canary 监控...');
   const timestamp = new Date().toISOString();
@@ -79,7 +79,7 @@ export async function executeCanary(
 // ============= Document Release =============
 
 export async function executeDocumentRelease(
-  projectDir: string, engine: AgentEngine = 'claude'
+  projectDir: string, engine: AgentEngine = 'minimax'
 ): Promise<{ success: boolean; outputPath?: string; error?: string }> {
   console.log('[Phase 3] document-release...');
   try {
@@ -172,11 +172,11 @@ function extractDocPath(o: string): string | null {
  * 优先级: Codex CLI > Claude CLI > 降级 mock
  */
 async function execPhase3Command(cwd: string, args: string[], timeout: number, engine: AgentEngine): Promise<string> {
-  const primary = engine === 'codex' ? 'codex' : 'claude';
+  const primary = 'minimax';
   try {
     return await execWithTimeout(primary, args, cwd, timeout);
   } catch (e1) {
-    const fallback = primary === 'codex' ? 'claude' : 'codex';
+    const fallback = 'openai';
     console.log('[Phase 3]', primary, '失败, 尝试', fallback, '...');
     try {
       return await execWithTimeout(fallback, args, cwd, timeout);

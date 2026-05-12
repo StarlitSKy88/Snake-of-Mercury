@@ -73,7 +73,7 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: MOCK_GENERATOR_OUTPUT,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 200,
     });
 
@@ -81,7 +81,7 @@ describe('GeneratorAgent', () => {
       sprint: MOCK_SPRINT,
       spec: MOCK_SPEC,
       projectDir: '/tmp/gen-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(true);
     expect(result.filesCreated.length).toBeGreaterThan(0);
@@ -93,7 +93,7 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: 'SELF-EVAL: 9/10\nStrengths: good',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
@@ -101,7 +101,7 @@ describe('GeneratorAgent', () => {
       sprint: MOCK_SPRINT,
       spec: MOCK_SPEC,
       projectDir: '/tmp/gen-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.selfEvalScore).toBe(9);
   });
@@ -110,7 +110,7 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: 'SELF-EVAL: 15/10\nStrengths: perfect',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
@@ -118,7 +118,7 @@ describe('GeneratorAgent', () => {
       sprint: MOCK_SPRINT,
       spec: MOCK_SPEC,
       projectDir: '/tmp/gen-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.selfEvalScore).toBeLessThanOrEqual(10);
   });
@@ -127,7 +127,7 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: false,
       output: '',
-      engine: 'codex',
+      engine: 'minimax',
       error: 'API Error',
       duration: 100,
     });
@@ -136,7 +136,7 @@ describe('GeneratorAgent', () => {
       sprint: MOCK_SPRINT,
       spec: MOCK_SPEC,
       projectDir: '/tmp/gen-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(false);
   });
@@ -148,7 +148,7 @@ describe('GeneratorAgent', () => {
       sprint: MOCK_SPRINT,
       spec: MOCK_SPEC,
       projectDir: '/tmp/gen-test',
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(false);
     expect(result.output).toContain('Crash');
@@ -158,7 +158,7 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: MOCK_GENERATOR_OUTPUT,
-      engine: 'codex',
+      engine: 'minimax',
       duration: 200,
     });
 
@@ -167,7 +167,7 @@ describe('GeneratorAgent', () => {
       spec: MOCK_SPEC,
       projectDir: '/tmp/gen-test',
       previousIssues: ['计数器不工作', 'UI显示异常'],
-    }, 'codex');
+    }, 'minimax');
 
     expect(result.success).toBe(true);
     // 验证 prompt 中包含 issue
@@ -182,11 +182,11 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: true,
       output: '## Sprint Contract\n- Deliverable: 计数器组件\n- Verification: npm test 通过',
-      engine: 'codex',
+      engine: 'minimax',
       duration: 100,
     });
 
-    const contract = await negotiateSprintContract(MOCK_SPRINT, MOCK_SPEC, 'codex');
+    const contract = await negotiateSprintContract(MOCK_SPRINT, MOCK_SPEC, 'minimax');
 
     expect(contract).toContain('计数器');
   });
@@ -195,12 +195,12 @@ describe('GeneratorAgent', () => {
     mockExecuteAgent.mockResolvedValueOnce({
       success: false,
       output: '',
-      engine: 'codex',
+      engine: 'minimax',
       error: 'timeout',
       duration: 100,
     });
 
-    const contract = await negotiateSprintContract(MOCK_SPRINT, MOCK_SPEC, 'codex');
+    const contract = await negotiateSprintContract(MOCK_SPRINT, MOCK_SPEC, 'minimax');
 
     // 降级为 sprint JSON
     expect(contract).toContain('sprintNumber');

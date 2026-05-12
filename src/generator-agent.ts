@@ -40,7 +40,7 @@ export interface GeneratorOutput {
  */
 export async function executeGenerator(
   input: GeneratorInput,
-  engine: AgentEngine = 'claude'
+  engine: AgentEngine = 'minimax'
 ): Promise<GeneratorOutput> {
   const sprint = input.sprint;
   console.log(`\n💻 [Generator] Sprint ${sprint.sprintNumber}: ${sprint.objectives[0]}`);
@@ -85,7 +85,7 @@ export async function executeGenerator(
 export async function negotiateSprintContract(
   sprint: SprintContract,
   spec: ProductSpec,
-  engine: AgentEngine = 'claude'
+  engine: AgentEngine = 'minimax'
 ): Promise<string> {
   console.log(`\n🤝 [Contract] 谈判 Sprint ${sprint.sprintNumber}...`);
 
