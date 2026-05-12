@@ -1,27 +1,27 @@
 {
-  "project": "开发一个独一无二的山海经风格贪吃蛇游戏：蛇在创业地图上收集客户和资源，有AI竞争对手蛇，纯前端单文件HTML实现，水墨画风Canvas渲染",
-  "createdAt": "2026-05-12T17:23:55.623Z",
+  "project": "开发一个独一无二的山海经风格贪吃蛇游戏：蛇在创业地图上收集客户和资源，有AI竞争对手蛇在同一地图上竞争，水墨画风Canvas渲染，纯前端单文件HTML实现，移动端响应式",
+  "createdAt": "2026-05-12T18:25:07.310Z",
   "sprints": [
     {
       "sprintNumber": 1,
-      "status": "failed",
-      "startedAt": "2026-05-12T17:23:55.629Z",
-      "completedAt": "2026-05-12T17:27:32.786Z",
-      "iterations": 1,
-      "notes": "stopped"
+      "status": "in_progress",
+      "startedAt": "2026-05-12T18:25:07.313Z",
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
     },
     {
       "sprintNumber": 2,
-      "status": "failed",
-      "startedAt": "2026-05-12T17:27:32.797Z",
-      "completedAt": "2026-05-12T17:38:40.354Z",
-      "iterations": 3,
-      "notes": "stopped"
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
     },
     {
       "sprintNumber": 3,
-      "status": "in_progress",
-      "startedAt": "2026-05-12T17:38:40.357Z",
+      "status": "pending",
+      "startedAt": null,
       "completedAt": null,
       "iterations": 0,
       "notes": ""

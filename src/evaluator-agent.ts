@@ -238,18 +238,33 @@ function parseEvaluatorOutput(output: string, sprint: SprintContract): Superviso
   }
 
   // Fallback：从文本中推断
-  console.warn('[Evaluator] 无法解析 JSON，推断结果');
-  const isApproved = /APPROVED|通过|pass/i.test(output) && !/REJECTED|失败|reject/i.test(output);
+  console.warn('[Evaluator] 无法解析 JSON，从文本推断结果');
+  
+  // 尝试提取分数（如 "产品深度:9" "productDepth: 8" "总分: 8.5"）
+  const scores = {
+    productDepth: extractScore(output, /产品深度|productDepth/i),
+    userExperience: extractScore(output, /用户体验|userExperience/i),
+    codeQuality: extractScore(output, /代码质量|codeQuality/i),
+    security: extractScore(output, /安全|security/i),
+  };
+  const totalMatch = output.match(/总[分体]?[：:]\s*(\d+\.?\d*)/i) || output.match(/totalScore[：:]\s*(\d+\.?\d*)/i);
+  const totalScore = totalMatch ? parseFloat(totalMatch[1]) : 5.0;
+  
+  const isApproved = /APPROVED|通过|✓|pass/i.test(output) && !/REJECTED|失败|✗|reject/i.test(output);
+  const hasIssues = output.match(/问题|issue|错误|error|bug|FAIL/i);
+  
   return {
     verdict: isApproved ? 'APPROVED' : 'REJECTED',
-    totalScore: isApproved ? 8.5 : 5.0,
+    totalScore: isApproved ? Math.max(8.0, totalScore) : Math.min(7.9, totalScore),
     dimensionScores: {
-      productDepth: isApproved ? 8 : 5,
-      userExperience: isApproved ? 8 : 5,
-      codeQuality: isApproved ? 8 : 5,
-      security: isApproved ? 8 : 5,
+      productDepth: scores.productDepth || 5,
+      userExperience: scores.userExperience || 5,
+      codeQuality: scores.codeQuality || 5,
+      security: scores.security || 5,
     },
-    issues: isApproved ? [] : ['评估器无法解析输出，默认 REJECTED'],
+    issues: hasIssues 
+      ? [output.slice(0, 500)] 
+      : isApproved ? [] : ['评估器输出无法解析，默认 REJECTED'],
   };
 }
 
@@ -303,6 +318,19 @@ function extractJSON(text: string): string {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   return start >= 0 && end > start ? text.slice(start, end + 1) : text;
+}
+
+
+/**
+ * 从文本中提取评分
+ */
+function extractScore(text: string, pattern: RegExp): number {
+  const match = text.match(new RegExp(pattern.source + '[：:]\\s*(\\d+\\.?\\d*)', 'i'));
+  if (match) {
+    const score = parseFloat(match[1]);
+    return score >= 0 && score <= 10 ? score : 5;
+  }
+  return 0;
 }
 
 function createDefaultReport(verdict: SupervisorVerdict, issues: string[]): SupervisorReport {
