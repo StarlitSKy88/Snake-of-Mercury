@@ -10,8 +10,11 @@
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { AgentMemory } from './memory/agent-memory.js';
+import { SwarmCoordinator, type AgentDefinition, type SwarmConfig } from './swarm/swarm-coordinator.js';
 import { join } from 'path';
 import { execCommand, executeAgent, type AgentEngine } from './utils/agent-executor.js';
+import { EventBus } from './event-bus.js';
 
 // ============= 类型 =============
 
@@ -91,12 +94,22 @@ export class CEOAgent {
   private baseDir: string;
   private engine: AgentEngine;
   private webhookUrl?: string;
+  /** 跨会话持久记忆 */
+  memory: AgentMemory;
+  /** 蜂群协作调度器 */
+  swarm: SwarmCoordinator;
 
   constructor(baseDir: string, engine: AgentEngine = 'minimax', webhookUrl?: string) {
     this.baseDir = baseDir;
     this.engine = engine;
     this.webhookUrl = webhookUrl;
     this.state = this.loadState();
+    this.memory = new AgentMemory(join(baseDir, '.memory'));
+    this.swarm = new SwarmCoordinator(
+      { projectId: 'ceo', topology: 'hierarchical', maxAgents: 15 },
+      new EventBus(baseDir),
+      this.memory
+    );
   }
 
   // ========== 项目管理 ==========
@@ -333,6 +346,57 @@ export class CEOAgent {
       .filter(e => e.content.toLowerCase().includes(q))
       .slice(-limit);
   }
+
+  // ========== AgentDB 持久记忆 ==========
+
+  /** 记录一条知识到跨会话记忆 */
+  learn(category: 'pattern' | 'decision' | 'anti_pattern' | 'fix', content: string): void {
+    this.memory.put({
+      namespace: 'global',
+      type: category,
+      content,
+      metadata: { source: 'ceo-agent', timestamp: new Date().toISOString() },
+      score: category === 'pattern' ? 0.9 : category === 'anti_pattern' ? 0.8 : 0.7,
+    });
+  }
+
+  /** 搜索跨会话记忆 */
+  recall(query: string, limit = 10) {
+    return this.memory.search(query, 'global', limit);
+  }
+
+  /** 获取记忆统计 */
+  memoryStats() { return this.memory.stats(); }
+
+  // ========== Swarm 蜂群管理 ==========
+
+  /** 为项目创建蜂群 */
+  createSwarm(projectId: string, config?: Partial<SwarmConfig>): SwarmCoordinator {
+    this.swarm = new SwarmCoordinator(
+      { ...config, projectId },
+      new EventBus(join(this.baseDir, 'projects', projectId)),
+      this.memory
+    );
+    this.swarm.startHeartbeatMonitor();
+    return this.swarm;
+  }
+
+  /** 注册 Agent 到蜂群 */
+  registerSwarmAgent(def: AgentDefinition) {
+    return this.swarm.registerAgent(def);
+  }
+
+  /** 提交任务到蜂群 */
+  dispatchTask(task: { title: string; description: string; domain: string; priority: 1|2|3 }) {
+    return this.swarm.submitTask({
+      ...task,
+      dependencies: [],
+      maxRetries: 3,
+    });
+  }
+
+  /** 蜂群摘要 */
+  swarmSummary() { return this.swarm.getSummary(); }
 
   // ========== 内部方法 ==========
 
