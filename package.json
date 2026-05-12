@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "pipeline": "HARNESS_MODE=pipeline tsx src/harness-scheduler.ts",
+    "pipeline:minimax": "HARNESS_MODE=pipeline HARNESS_ENGINE=minimax tsx src/harness-scheduler.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.50.0",

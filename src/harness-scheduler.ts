@@ -7,6 +7,8 @@
 import { executeAgent, detectAvailableEngines, type AgentEngine } from "./utils/agent-executor.js";
 import { EventBus } from "./event-bus.js";
 import { RalphWiggumLoop } from "./ralph-loop.js";
+import { Pipeline } from './middleware/pipeline.js';
+import { createDefaultPipeline } from './middleware/builtins.js';
 import { CEOAgent } from "./ceo-agent.js";
 import { DevOpsAgent } from "./devops-agent.js";
 import { MarketingAgent } from "./marketing-agent.js";
@@ -562,6 +564,42 @@ async function executePhase3(state: HarnessState, projectDir: string): Promise<v
   };
 
   console.log('[Phase 3] 完成');
+}
+
+// ============= Pipeline 模式（新架构）=============
+
+export async function runPipelineLoop(requirement: string, projectDir: string, engine?: string): Promise<void> {
+  const eng = (engine || process.env.HARNESS_ENGINE || 'minimax') as 'minimax' | 'claude' | 'openai';
+  const pipeline = new Pipeline('pipeline-main', projectDir);
+
+  console.log(`
+╔══════════════════════════════════════════════════════════════╗
+║     Snake of Mercury — Middleware Pipeline (新架构)          ║
+╠══════════════════════════════════════════════════════════════╣
+║  需求: ${(requirement.slice(0, 55)).padEnd(53)}║
+║  引擎: ${eng.padEnd(54)}║
+╚══════════════════════════════════════════════════════════════╝
+  `);
+
+  const middlewares = createDefaultPipeline(eng);
+  pipeline.useAll(middlewares);
+
+  console.log(pipeline.summary());
+
+  const ctx = await pipeline.run(requirement, projectDir, eng);
+
+  console.log(`
+${'='.repeat(50)}`);
+  console.log(`Pipeline ${ctx.errors.length === 0 ? '✅ 成功' : '⚠️ 部分完成'}`);
+  console.log(`错误: ${ctx.errors.length}`);
+  if (ctx.productSpec) {
+    const spec = ctx.productSpec as any;
+    console.log(`Sprint: ${spec.sprintPlan?.length || 0} 个`);
+  }
+  console.log(`${'='.repeat(50)}
+`);
+
+  pipeline.shutdown();
 }
 
 // ============= CLI 入口 =============
