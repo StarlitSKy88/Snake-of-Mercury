@@ -19,6 +19,7 @@ import type {
   FourDimensionScores,
   ProductSpec
 } from './types.js';
+import { THREE_RED_LINES, EVALUATOR_HARDCORE } from './pua-constraints.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -64,7 +65,7 @@ export async function executeEvaluator(
 
   try {
     const result = await executeAgent(
-      EVALUATOR_SYSTEM_PROMPT,
+      EVALUATOR_SYSTEM_PROMPT + "\n" + THREE_RED_LINES + "\n" + EVALUATOR_HARDCORE,
       prompt,
       { engine, workdir: input.projectDir, timeout: 300000 }
     );

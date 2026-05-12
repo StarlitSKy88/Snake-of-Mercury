@@ -237,6 +237,10 @@ export function createGeneratorEvaluatorMiddleware(
           }
 
           // Generator: 首次实现 / 根据上次 Evaluator 反馈修复
+          // PUA: 连续失败时注入问责压力
+          const { buildPressurePrompt } = await import("../pua-constraints.js");
+          const pressureNote = buildPressurePrompt(sprint.sprintNumber, consecutiveNoProgress, maxNoProgressRetries);
+          if (pressureNote) console.log(pressureNote);
           const prevIssues = sprintIssues.get(sprint.sprintNumber);
           console.log(`[Sprint ${sprint.sprintNumber}] ${sprintIterations > 1 ? `🔧 修复 #${sprintIterations}` : '💻 实现中...'}` +
             (prevIssues ? ` 上次: ${prevIssues.slice(0, 60)}` : ''));

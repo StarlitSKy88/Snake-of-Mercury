@@ -49,7 +49,7 @@ export async function executeGenerator(
 
   try {
     const result = await executeAgent(
-      GENERATOR_SYSTEM_PROMPT,
+      PUA_GENERATOR_PROMPT,
       prompt,
       { engine, workdir: input.projectDir, timeout: 600000 }
     );
@@ -157,6 +157,11 @@ Weaknesses: ...
 - Use placeholder code
 - Implement features outside the current sprint`;
 
+
+import { THREE_RED_LINES, OWNER_FOUR_QUESTIONS } from './pua-constraints.js';
+
+const PUA_GENERATOR_PROMPT = GENERATOR_SYSTEM_PROMPT + "\n" + THREE_RED_LINES + "\n" + OWNER_FOUR_QUESTIONS;
+// Replace original with PUA-enhanced version
 function buildGeneratorPrompt(input: GeneratorInput): string {
   const { sprint, spec, previousIssues, sprintContract } = input;
 
