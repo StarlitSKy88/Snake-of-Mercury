@@ -14,6 +14,7 @@ import { AgentMemory } from './memory/agent-memory.js';
 import { SwarmCoordinator, type AgentDefinition, type SwarmConfig } from './swarm/swarm-coordinator.js';
 import { join } from 'path';
 import { execCommand, executeAgent, type AgentEngine } from './utils/agent-executor.js';
+import { THREE_RED_LINES, OWNER_FOUR_QUESTIONS } from './pua-constraints.js';
 import { EventBus } from './event-bus.js';
 
 // ============= 类型 =============
@@ -86,6 +87,50 @@ export interface KnowledgeEntry {
 
 const CEO_STATE_FILE = '.ceo-state.json';
 const PROJECTS_DIR = 'projects';
+
+
+// ============= CEO System Prompt（LLM 决策大脑）=============
+
+const CEO_SYSTEM_PROMPT = `你是**AI创业工厂的CEO**——你是昴君（创始人）与AI Agent团队之间的桥梁。
+
+## 你的身份
+你不是执行者，你是决策者和沟通者。你的团队里有Planner（规划）、Generator（编码）、Evaluator（审查）、DevOps（运维）、Marketing（营销）——他们各司其职，你负责统筹。
+
+## 你的核心职责
+
+### 1. 智能汇报
+- 用户问进度时，用简洁的自然语言总结（不要罗列JSON数据）
+- 突出关键信息：当前Phase、通过/失败Sprint数、阻塞项
+- 用情绪化但专业的语气（如"进展顺利✅"或"遇到麻烦了⚠️"）
+
+### 2. 升级决策
+你需要判断什么该告诉用户、什么该自己处理：
+- **必须升级**：需要用户决策的事项（部署确认、预算审批、方向变更）
+- **不需要升级**：技术细节、自动修复的重试、已在处理的错误
+- 升级时给出清晰选项（不是开放性问题）
+
+### 3. 反馈路由
+用户说的话可能是：
+- "第一个项目加点XX功能" → 路由到对应项目的需求Agent
+- "怎么这么慢" → 分析瓶颈并解释
+- "先停一下" → 暂停项目并确认
+
+### 4. 项目优先级管理
+当用户说"同时做A和B"时：
+- 评估资源冲突
+- 建议执行顺序
+- 不要盲目并行——告诉用户真实的代价
+
+## 你的约束
+${THREE_RED_LINES}
+
+## CEO专属决策四问
+${OWNER_FOUR_QUESTIONS}
+
+## 输出格式
+当用户询问时，你应输出自然语言回复。如果涉及操作，先描述你理解的操作，然后执行。
+如果无法确定用户意图，提出1-2个澄清问题（但不要超过2个）。`;
+
 
 // ============= CEO 核心 =============
 
@@ -367,6 +412,97 @@ export class CEOAgent {
 
   /** 获取记忆统计 */
   memoryStats() { return this.memory.stats(); }
+
+  // ========== LLM 决策大脑 ==========
+
+  /**
+   * CEO 智能对话 — 用户用自然语言交互
+   * CEO 理解意图、查询项目状态、做出决策、返回自然语言回复
+   */
+  async askCEO(question: string): Promise<string> {
+    // 收集所有项目状态作为上下文
+    const projects = this.listProjects();
+    const projectContext = projects.length > 0
+      ? projects.map(p => this.getProjectSummary(p.id)).join('\n\n---\n\n')
+      : '暂无项目';
+
+    const pendingApprovals = projects
+      .flatMap(p => p.pendingApprovals.filter(a => !a.resolved))
+      .map(a => `- [${a.type}] ${a.message} (项目: ${a.id})`)
+      .join('\n');
+
+    const knowledgeContext = this.state.knowledgeBase.slice(-5)
+      .map(k => `[${k.category}] ${k.content}`)
+      .join('\n');
+
+    const prompt = `# 当前状态
+
+## 所有项目
+${projectContext}
+
+## 待审批事项
+${pendingApprovals || '无'}
+
+## 最近知识记录
+${knowledgeContext || '无'}
+
+---
+
+## 用户消息
+${question}
+
+---
+
+请以CEO身份回复用户。如果需要执行操作（创建项目、暂停项目等），明确说明你的计划。
+如果需要用户做决策，给出清晰的选项。
+如果只是状态查询，给出简洁的总结。`;
+
+    try {
+      const result = await executeAgent(
+        CEO_SYSTEM_PROMPT,
+        prompt,
+        { engine: this.engine, timeout: 120000 }
+      );
+
+      if (result.success) {
+        return result.output;
+      }
+      return `CEO决策引擎暂时不可用。当前项目状态：\n${projectContext}`;
+    } catch (error) {
+      return `CEO暂时无法响应（${error}）。请稍后重试。`;
+    }
+  }
+
+  /**
+   * CEO 自主巡检 — 定期检查所有项目，自动处理可处理的事项
+   * 返回需要用户关注的事项列表
+   */
+  async autonomousCheck(): Promise<string[]> {
+    const projects = this.listProjects();
+    const escalations: string[] = [];
+
+    for (const project of projects) {
+      // 检查审批超时（超过24小时未处理的审批）
+      const staleApprovals = project.pendingApprovals.filter(a => {
+        if (a.resolved) return false;
+        const age = Date.now() - new Date(a.createdAt).getTime();
+        return age > 86400000; // 24小时
+      });
+
+      for (const a of staleApprovals) {
+        escalations.push(`⏰ [${project.name}] 审批超时: ${a.message} (${a.type})`);
+      }
+
+      // 检查长时间无进展的项目
+      const lastUpdate = new Date(project.updatedAt).getTime();
+      const idleHours = (Date.now() - lastUpdate) / 3600000;
+      if (idleHours > 12 && project.status === 'developing') {
+        escalations.push(`⚠️ [${project.name}] 已${Math.round(idleHours)}小时无进展，当前状态: ${project.status}`);
+      }
+    }
+
+    return escalations;
+  }
 
   // ========== Swarm 蜂群管理 ==========
 
