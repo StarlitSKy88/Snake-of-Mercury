@@ -1,0 +1,70 @@
+{
+  "project": "开发一个独一无二的山海经风格贪吃蛇游戏：蛇在创业地图上收集客户和资源，有AI竞争对手蛇，纯前端单文件HTML实现，水墨画风Canvas渲染",
+  "createdAt": "2026-05-12T17:23:55.623Z",
+  "sprints": [
+    {
+      "sprintNumber": 1,
+      "status": "failed",
+      "startedAt": "2026-05-12T17:23:55.629Z",
+      "completedAt": "2026-05-12T17:27:32.786Z",
+      "iterations": 1,
+      "notes": "stopped"
+    },
+    {
+      "sprintNumber": 2,
+      "status": "failed",
+      "startedAt": "2026-05-12T17:27:32.797Z",
+      "completedAt": "2026-05-12T17:38:40.354Z",
+      "iterations": 3,
+      "notes": "stopped"
+    },
+    {
+      "sprintNumber": 3,
+      "status": "in_progress",
+      "startedAt": "2026-05-12T17:38:40.357Z",
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
+    },
+    {
+      "sprintNumber": 4,
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
+    },
+    {
+      "sprintNumber": 5,
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
+    },
+    {
+      "sprintNumber": 6,
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
+    },
+    {
+      "sprintNumber": 7,
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
+    },
+    {
+      "sprintNumber": 8,
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null,
+      "iterations": 0,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "contextSnapshot": "开发一个独一无二的山海经风格贪吃蛇游戏：蛇在创业地图上收集客户和资源，有AI竞争对手蛇，纯前端单文件HTML实现，水墨画风Canvas渲染",
+  "problemStatement": "开发一个独一无二的山海经风格贪吃蛇游戏：蛇在创业地图上收集客户和资源，有AI竞争对手蛇，纯前端单文件HTML实现，水墨画风Canvas渲染",
+  "jtbd": "待定义",
+  "currentAlternatives": "待分析",
+  "evidenceAndAssumptions": [],
+  "successCriteria": [
+    "功能完整",
+    "可正常运行"
+  ],
+  "scopeBoundaries": {
+    "inScope": [],
+    "outOfScope": []
+  },
+  "prototypePlan": "待规划"
+}

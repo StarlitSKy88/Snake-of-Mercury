@@ -146,7 +146,15 @@ export function createPhase0Middleware(engine: AgentEngine = 'minimax'): Middlew
 
       const debateFn = await getHubDebate();
       const debateResult = await debateFn(ctx.projectDir, problemDefinition, ((ctx.phase0Iteration as number) || 1));
-      ctx.convergedRequirement = debateResult.convergedRequirement;
+      
+      // Phase0 降级: 如果收敛需求是错误消息，使用原始需求
+      const converged = debateResult.convergedRequirement || '';
+      if (converged.startsWith('[Error]') || converged.includes('SDK 执行失败') || converged.includes('API 不可用') || converged.length < 20) {
+        console.warn('[Phase0] ⚠️ 辩论引擎失败，降级使用原始需求');
+        ctx.convergedRequirement = ctx.requirement;
+      } else {
+        ctx.convergedRequirement = converged;
+      }
       ctx.debateResult = debateResult;
       ctx.phase0Iteration = ((ctx.phase0Iteration as number) || 0) + 1;
       await next();

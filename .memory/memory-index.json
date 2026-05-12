@@ -1,0 +1,113 @@
+[
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-phase0",
+    "content": "Agent registered: Phase0 Debate (analyst)",
+    "metadata": {
+      "agentId": "agent-phase0",
+      "role": "analyst",
+      "domain": "requirements"
+    },
+    "id": "mem-1778606490747-zaydvy",
+    "createdAt": "2026-05-12T17:21:30.747Z",
+    "updatedAt": "2026-05-12T17:21:30.747Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-planner",
+    "content": "Agent registered: Planner (planner)",
+    "metadata": {
+      "agentId": "agent-planner",
+      "role": "planner",
+      "domain": "planning"
+    },
+    "id": "mem-1778606490748-ybxwy0",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-init",
+    "content": "Agent registered: Initializer (initializer)",
+    "metadata": {
+      "agentId": "agent-init",
+      "role": "initializer",
+      "domain": "environment"
+    },
+    "id": "mem-1778606490748-q3bjhv",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-generator-evaluator",
+    "content": "Agent registered: Generator+Evaluator (generator)",
+    "metadata": {
+      "agentId": "agent-generator-evaluator",
+      "role": "generator",
+      "domain": "coding"
+    },
+    "id": "mem-1778606490748-gsqgnz",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-delivery",
+    "content": "Agent registered: Delivery (devops)",
+    "metadata": {
+      "agentId": "agent-delivery",
+      "role": "devops",
+      "domain": "deployment"
+    },
+    "id": "mem-1778606490748-69qdn2",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-devops",
+    "content": "Agent registered: DevOps (devops)",
+    "metadata": {
+      "agentId": "agent-devops",
+      "role": "devops",
+      "domain": "operations"
+    },
+    "id": "mem-1778606490748-285srb",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "agent:agent-marketing",
+    "content": "Agent registered: Marketing (marketing)",
+    "metadata": {
+      "agentId": "agent-marketing",
+      "role": "marketing",
+      "domain": "growth"
+    },
+    "id": "mem-1778606490748-3agqsw",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  },
+  {
+    "namespace": "pipeline-main",
+    "type": "context",
+    "key": "pipeline:start",
+    "content": "Pipeline started: 开发一个独一无二的山海经风格贪吃蛇游戏：蛇在创业地图上收集客户和资源，有AI竞争对手蛇，纯前端单文件HTML实现，水墨画风Canvas渲染",
+    "metadata": {
+      "engine": "minimax",
+      "timestamp": "2026-05-12T17:21:30.748Z"
+    },
+    "id": "mem-1778606490748-ap7eye",
+    "createdAt": "2026-05-12T17:21:30.748Z",
+    "updatedAt": "2026-05-12T17:21:30.748Z"
+  }
+]

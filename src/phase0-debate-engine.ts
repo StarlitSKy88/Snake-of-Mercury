@@ -19,7 +19,7 @@ import { writeFileSync, readFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { AgentOutput, DebateResult, ProblemDefinition } from './types.js';
-import { robustSDKCall } from './utils/sdk-executor.js';
+import { executeAgent, type AgentEngine } from './utils/agent-executor.js';
 import { THREE_RED_LINES } from './pua-constraints.js';
 
 // ============= 常量定义 =============
@@ -742,24 +742,23 @@ ${baseConstraints}`,
 async function execClaudeSDKWithTimeout(
   prompt: string,
   timeout: number,
-  systemPrompt?: string
+  systemPrompt?: string,
+  engine: AgentEngine = 'minimax'
 ): Promise<string> {
   const effectiveSystemPrompt = systemPrompt || '你是一个需求分析专家。请给出简洁、有洞察力的回答。';
 
-  const result = await robustSDKCall(
+  const result = await executeAgent(
     effectiveSystemPrompt,
     prompt,
     {
-      maxRetries: 3,
-      minOutputLines: 15, // 辩论输出需要至少 15 行
-      onRetry: (attempt, reason) => {
-        console.log(`[SDK Retry] 尝试 ${attempt}/3: ${reason}`);
-      }
+      engine,
+      timeout,
+      // 辩论输出通过 MiniMax 直连执行，内置重试由 agent-executor 处理
     }
   );
 
   if (!result.success) {
-    throw new Error(`SDK 执行失败: ${result.error?.message || '未知错误'} (尝试 ${result.attempts} 次)`);
+    throw new Error(`辩论Agent执行失败: ${result.error || '未知错误'}`);
   }
 
   return result.output;
