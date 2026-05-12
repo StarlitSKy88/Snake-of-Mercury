@@ -323,3 +323,22 @@ function printReportSummary(report: SupervisorReport): void {
 // ============= 导出常量 =============
 
 export { SCORE_WEIGHTS, HARD_THRESHOLD, PASS_THRESHOLD };
+
+/**
+ * 逐个评估每项 acceptance criterion（Anthropic 2026.03 规范）
+ * 
+ * 每个 criterion 独立判断，全部通过才算 Sprint PASS。
+ */
+export function evaluateEachCriterion(
+  criteria: string[],
+  report: { verdict: string; issues: string[] }
+): { criterion: string; passed: boolean; reason: string }[] {
+  return criteria.map(criterion => {
+    const matchedIssue = report.issues?.find(
+      (issue: string) => issue.toLowerCase().includes(criterion.toLowerCase().slice(0, 10))
+    );
+    if (matchedIssue) return { criterion, passed: false, reason: matchedIssue };
+    if (report.verdict === 'APPROVED') return { criterion, passed: true, reason: 'verdict APPROVED' };
+    return { criterion, passed: false, reason: report.issues?.join('; ') || '未通过评估' };
+  });
+}

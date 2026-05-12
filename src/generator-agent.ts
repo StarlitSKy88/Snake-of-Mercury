@@ -220,3 +220,30 @@ function writeProgress(
     timestamp: new Date().toISOString(),
   }, null, 2));
 }
+
+/**
+ * 结构化自验（Anthropic Article 1.6）
+ * 
+ * Generator 输出代码后，逐条对照 acceptance criteria 自检。
+ * 全部通过才提交给 Evaluator；否则自动修复。
+ */
+export function selfVerify(
+  acceptanceCriteria: string[],
+  generatedOutput: string
+): { allPassed: boolean; results: { criterion: string; passed: boolean; note: string }[] } {
+  const results = acceptanceCriteria.map(criterion => {
+    const lcOut = generatedOutput.toLowerCase();
+    const lcCrit = criterion.toLowerCase();
+    // 简单检查：输出中是否包含与 criterion 相关的关键词
+    const keywords = lcCrit.split(/\s+/).filter(w => w.length > 3);
+    const matched = keywords.filter(kw => lcOut.includes(kw));
+    const passed = matched.length >= Math.ceil(keywords.length * 0.5);
+    return {
+      criterion,
+      passed,
+      note: passed ? `关键词匹配 ${matched.length}/${keywords.length}` : `缺失关键词: ${keywords.filter(kw => !lcOut.includes(kw)).join(', ')}`,
+    };
+  });
+
+  return { allPassed: results.every(r => r.passed), results };
+}

@@ -14,6 +14,8 @@
  *   新: Pipeline.add([...middlewares]).run(input)
  */
 
+import { writeFileSync } from 'fs';
+import { join as pathJoin } from 'path';
 import { EventBus, type EventType } from '../event-bus.js';
 import { SwarmCoordinator, type AgentDefinition, type TaskResult } from '../swarm/swarm-coordinator.js';
 import { AgentMemory } from '../memory/agent-memory.js';
@@ -141,6 +143,7 @@ export class Pipeline {
           phase: middleware.phase, middleware: middleware.name,
           projectId: ctx.projectId,
         });
+        try { writeFileSync(pathJoin(ctx.projectDir, '.pipeline-state.json'), JSON.stringify({lastPhase: middleware.phase, updatedAt: new Date().toISOString()})); } catch {}
 
         this.memory.put({
           namespace: ctx.projectId,

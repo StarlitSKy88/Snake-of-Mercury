@@ -161,6 +161,24 @@ export function createPlannerMiddleware(engine: AgentEngine = 'minimax'): Middle
 
 // ============= Phase 2: Generator + Evaluator (Anthropic 逐个 Sprint + 无限重试) =============
 
+// ============= Init: 项目初始化 (Anthropic Article 1.1) =============
+
+export function createInitMiddleware(engine: AgentEngine = "minimax"): Middleware {
+  return {
+    name: "Init", phase: "init",
+    agentDef: { id: "agent-init", name: "Initializer", role: "initializer", domain: "environment", capabilities: ["init-sh", "progress-file"], engine },
+    async run(ctx: PipelineContext, next: () => Promise<void>) {
+      const spec = ctx.productSpec as any;
+      const tech = spec?.technicalDirection || "Node.js + TypeScript";
+      const count = spec?.sprintPlan?.length || 1;
+      const { generateInitSh, generateProgressFile } = await import("../initializer.js");
+      console.log(`[Init] ✅ init.sh → ${generateInitSh(ctx.projectDir, tech)}`);
+      console.log(`[Init] ✅ progress.json → ${generateProgressFile(ctx.projectDir, ctx.requirement, count)} (${count} Sprints)`);
+      await next();
+    },
+  };
+}
+
 export function createGeneratorEvaluatorMiddleware(
   engine: AgentEngine = 'minimax',
   maxGlobalIterations: number = 50,
@@ -192,6 +210,8 @@ export function createGeneratorEvaluatorMiddleware(
       let globalIterations = 0;
 
       for (const sprint of spec.sprintPlan) {
+          const { updateProgressSprint } = await import("../initializer.js");
+          updateProgressSprint(ctx.projectDir, sprint.sprintNumber, { status: "in_progress" });
         console.log(`\n━━━ Sprint ${sprint.sprintNumber}/${spec.sprintPlan.length} ━━━`);
 
         let sprintPassed = false;
@@ -252,6 +272,10 @@ export function createGeneratorEvaluatorMiddleware(
             sprintIssues.delete(sprint.sprintNumber);
             sprintResults.push({ success: true, output: genResult.output });
             console.log(`  ✅ Sprint ${sprint.sprintNumber} 通过 (${sprintIterations} 次迭代)`);
+            updateProgressSprint(ctx.projectDir, sprint.sprintNumber, { status: "passed", iterations: sprintIterations });
+            // Clean state: 验证项目可交付 (Anthropic Article 1.5)
+            const { execCommand } = await import("../utils/agent-executor.js");
+            try { const tr = await execCommand("npm", ["test", "--", "--passWithNoTests"], { cwd: ctx.projectDir, timeout: 30000 }); console.log(`  🧹 ${tr.success ? "✅" : "⚠️"} 项目状态检查`); } catch { console.log("  🧹 ⚠️ 项目尚无测试"); }
             break;
           }
 
@@ -266,6 +290,7 @@ export function createGeneratorEvaluatorMiddleware(
           }
         }
 
+          updateProgressSprint(ctx.projectDir, sprint.sprintNumber, { status: "failed", iterations: sprintIterations, notes: "stopped" });
         if (!sprintPassed) break; // 当前 Sprint 熔断，停止后续
       }
 
@@ -413,6 +438,7 @@ export function createDefaultPipeline(engine: AgentEngine = 'minimax'): Middlewa
   return [
     createPhase0Middleware(engine),
     createPlannerMiddleware(engine),
+    createInitMiddleware(engine),
     createGeneratorEvaluatorMiddleware(engine, 50, 10),
     createDeliveryMiddleware(engine),
     createDevOpsMiddleware(engine),

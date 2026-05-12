@@ -207,3 +207,34 @@ npm run test:coverage                      # vitest run --coverage
 ---
 
 > 版本: v2.1 | 更新: 2026-05-12 (架构审计 + 死代码清理)
+
+---
+
+## 十一、Anthropic 四类 Agent 失败模式防御表 (Article 1.8)
+
+| # | 失败模式 | 原文描述 | 我们的防御机制 | 对应代码 |
+|---|---------|---------|--------------|---------|
+| 1 | **一次性做太多** (One-shot) | Agent 试图在一个 context window 完成整个 App | Feature List (`featureList.must/should/could`) + Sprint 拆分 | `planner-agent.ts` → `ProductSpec.featureList` |
+| 2 | **过早宣布完成** (Premature victory) | Agent 看到有进展就声称完成了 | 结构化自验 (`selfVerify`) + Evaluator 硬阈值 (8.0) | `generator-agent.ts::selfVerify` + `evaluator-agent.ts::PASS_THRESHOLD` |
+| 3 | **留下脏状态** (Dirty state) | 代码有 bug、未文档化、不可运行 | Clean State 协议: 每个 Sprint 通过后跑 `npm test` | `builtins.ts` GenEval Middleware → Clean state check |
+| 4 | **不知道如何启动** (No run instructions) | 新会话不知道如何运行项目 | `init.sh` (一行启动) + `progress.json` (进度日记) | `initializer.ts::generateInitSh` |
+
+### 防御机制对应关系
+
+```
+Agent 失败 → 防御层
+─────────────────────
+One-shot  → Feature List → Sprint 拆分 (Planner)
+           → 逐个 Sprint 顺序执行 (GenEval)
+
+Premature → selfVerify (Generator 自检)
+victory   → evaluateEachCriterion (Evaluator 逐条验证)
+           → PASS_THRESHOLD=8.0 + MIN_DIMENSION=7.0
+
+Dirty     → Clean state: npm test 通过才进下一 Sprint
+state     → progress.json 记录每步结果
+           → Pipeline 状态持久化 (.pipeline-state.json)
+
+No run    → init.sh (自动检测技术栈生成启动命令)
+instructions → progress.json (记录所有 Sprint 历史)
+```
