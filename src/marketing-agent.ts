@@ -11,6 +11,7 @@
 
 import { execCommand, executeAgent, type AgentEngine } from './utils/agent-executor.js';
 import { createAiToEarnClient, type AiToEarnClient, type PublishResult, type EarningsSummary } from './integrations/aitoearn-client.js';
+import { AgentMemory } from './memory/agent-memory.js';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -86,6 +87,7 @@ export class MarketingAgent {
   private onTaskGenerated?: (task: OptimizationTask) => void;
   private fetchTimer?: ReturnType<typeof setInterval>;
 
+  private memory: AgentMemory;
   private aitoearn: AiToEarnClient | null = null;
 
   constructor(
@@ -97,6 +99,7 @@ export class MarketingAgent {
     this.engine = engine;
     this.onTaskGenerated = onTaskGenerated;
     this.state = this.loadState();
+    this.memory = new AgentMemory(join(baseDir, '.memory'));
     // 初始化 AiToEarn（从环境变量）
     this.aitoearn = createAiToEarnClient();
     if (this.aitoearn) {
@@ -265,6 +268,15 @@ export class MarketingAgent {
     // 注册任务
     for (const task of tasks) {
       this.state.optimizationTasks.push(task);
+      // 持久化优化任务到跨会话记忆
+      this.memory.put({
+        namespace: 'marketing',
+        type: 'pattern',
+        key: task.id,
+        content: task.description,
+        metadata: { type: task.type, priority: task.priority, confidence: task.confidence },
+        score: task.priority === 1 ? 0.9 : task.priority === 2 ? 0.7 : 0.5,
+      });
       this.onTaskGenerated?.(task);
     }
 
@@ -291,6 +303,15 @@ export class MarketingAgent {
     if (entry.sentiment === 'negative') {
       const task = this.createTask('bug', `用户反馈: ${entry.content.slice(0, 100)}`, 1);
       this.state.optimizationTasks.push(task);
+      // 持久化优化任务到跨会话记忆
+      this.memory.put({
+        namespace: 'marketing',
+        type: 'pattern',
+        key: task.id,
+        content: task.description,
+        metadata: { type: task.type, priority: task.priority, confidence: task.confidence },
+        score: task.priority === 1 ? 0.9 : task.priority === 2 ? 0.7 : 0.5,
+      });
       this.onTaskGenerated?.(task);
     }
 

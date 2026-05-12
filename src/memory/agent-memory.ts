@@ -23,7 +23,7 @@ export interface MemoryEntry {
   type: 'pattern' | 'decision' | 'anti_pattern' | 'fix' | 'context' | 'task_result';
   key?: string;            // 可选唯一键（用于去重）
   content: string;
-  metadata: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   embedding?: number[];    // 可选向量（用于语义搜索）
   score?: number;          // 重要性 0-1
   createdAt: string;
@@ -76,7 +76,8 @@ export class AgentMemory {
   // ===== CRUD =====
 
   /** 写入记忆 */
-  put(entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): MemoryEntry {
+  put(entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'> & { metadata?: Record<string, unknown> }): MemoryEntry {
+    const metadata = entry.metadata || {};
     // 去重：同 namespace + key 则更新
     if (entry.key) {
       const existing = this.findByKey(entry.namespace, entry.key);
@@ -89,6 +90,7 @@ export class AgentMemory {
     const now = new Date().toISOString();
     const full: MemoryEntry = {
       ...entry,
+      metadata,
       id: `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: now,
       updatedAt: now,

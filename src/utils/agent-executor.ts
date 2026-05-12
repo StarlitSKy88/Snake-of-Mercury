@@ -11,10 +11,11 @@
 
 import { robustSDKCall } from './sdk-executor.js';
 import { robustMiniMaxCall, type MiniMaxConfig } from './minimax-executor.js';
+import { executeOllama, discoverModels, type OllamaConfig } from './ollama-executor.js';
 
 // ============= 类型 =============
 
-export type AgentEngine = 'minimax' | 'claude' | 'openai';
+export type AgentEngine = 'minimax' | 'claude' | 'openai' | 'ollama' | 'auto';
 
 export interface AgentExecutorConfig {
   engine: AgentEngine;
@@ -47,6 +48,10 @@ export async function executeAgent(
       return executeMiniMaxRoute(systemPrompt, userMessage, config);
     case 'openai':
       return executeOpenAICompat(systemPrompt, userMessage, config);
+    case 'ollama':
+      return executeOllamaRoute(systemPrompt, userMessage, config);
+    case 'auto':
+      return executeAutoRoute(systemPrompt, userMessage, config);
     default:
       return {
         success: false, output: '', engine: config.engine,
@@ -175,11 +180,70 @@ export async function detectAvailableEngines(): Promise<AgentEngine[]> {
   if (process.env.MINIMAX_API_KEY) available.push('minimax');
   if (process.env.ANTHROPIC_API_KEY) available.push('claude');
   if (process.env.OPENAI_API_KEY) available.push('openai');
+  
+  // 检测 Ollama
+  try {
+    const r = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(2000) });
+    if (r.ok) available.push('ollama');
+  } catch { /* not running */ }
+
+  // 自动模式始终可用（会fallback）
+  available.push('auto');
 
   return available.length > 0 ? available : ['minimax']; // 默认 fallback
 }
 
 // ============= Shell 命令执行 (非 AI，纯工具) =============
+
+// ============= Ollama 路由 =============
+
+async function executeOllamaRoute(
+  systemPrompt: string, userMessage: string, config: AgentExecutorConfig
+): Promise<AgentExecutionResult> {
+  const startTime = Date.now();
+  const result = await executeOllama(systemPrompt, userMessage, {
+    model: config.model, timeout: config.timeout,
+  });
+
+  return {
+    success: result.success, output: result.output, engine: 'ollama',
+    error: result.error, duration: result.duration || Date.now() - startTime,
+  };
+}
+
+// ============= Auto 路由 (自动选择最佳可用模型) =============
+
+async function executeAutoRoute(
+  systemPrompt: string, userMessage: string, config: AgentExecutorConfig
+): Promise<AgentExecutionResult> {
+  const startTime = Date.now();
+
+  // 发现可用模型，按优先级尝试
+  const models = await discoverModels();
+  
+  // 优先级: minimax > ollama > openai > claude
+  const priority = ['minimax', 'ollama', 'openai', 'claude'];
+
+  for (const engine of priority) {
+    const available = models.some(m => m.provider === engine || engine === 'ollama' && m.provider === 'ollama');
+    if (!available) continue;
+
+    try {
+      const result = await executeAgent(systemPrompt, userMessage, { ...config, engine: engine as AgentEngine });
+      if (result.success && result.output.length > 50) {
+        return { ...result, engine: 'auto' as AgentEngine, duration: Date.now() - startTime };
+      }
+    } catch { /* try next */ }
+  }
+
+  return {
+    success: false, output: '', engine: 'auto',
+    error: 'No available model found. Set MINIMAX_API_KEY or start Ollama.',
+    duration: Date.now() - startTime,
+  };
+}
+
+// ============= Shell 命令 =============
 
 import { spawn } from 'child_process';
 

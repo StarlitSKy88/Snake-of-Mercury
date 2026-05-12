@@ -9,6 +9,7 @@
  */
 
 import { execCommand, type AgentEngine } from './utils/agent-executor.js';
+import { AgentMemory } from './memory/agent-memory.js';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -61,6 +62,7 @@ export class DevOpsAgent {
   private baseDir: string;
   private engine: AgentEngine;
   private onEscalate?: (incident: Incident) => void;
+  private memory: AgentMemory;
   private checkTimer?: ReturnType<typeof setInterval>;
 
   constructor(
@@ -71,6 +73,7 @@ export class DevOpsAgent {
     this.baseDir = baseDir;
     this.engine = engine;
     this.onEscalate = onEscalate;
+    this.memory = new AgentMemory(join(baseDir, '.memory'));
     this.state = this.loadState();
   }
 
