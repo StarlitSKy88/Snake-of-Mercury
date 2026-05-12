@@ -574,7 +574,7 @@ export async function runPipelineLoop(requirement: string, projectDir: string, e
 
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
-║     Snake of Mercury — Middleware Pipeline (新架构)          ║
+║     Snake of Mercury — Pipeline v2.1 (统一架构)              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  需求: ${(requirement.slice(0, 55)).padEnd(53)}║
 ║  引擎: ${eng.padEnd(54)}║
@@ -589,15 +589,24 @@ export async function runPipelineLoop(requirement: string, projectDir: string, e
   const ctx = await pipeline.run(requirement, projectDir, eng);
 
   console.log(`
-${'='.repeat(50)}`);
+${'='.repeat(60)}`);
   console.log(`Pipeline ${ctx.errors.length === 0 ? '✅ 成功' : '⚠️ 部分完成'}`);
   console.log(`错误: ${ctx.errors.length}`);
   if (ctx.productSpec) {
     const spec = ctx.productSpec as any;
     console.log(`Sprint: ${spec.sprintPlan?.length || 0} 个`);
   }
-  console.log(`${'='.repeat(50)}
-`);
+  if (ctx.sprintResults) {
+    const sr = ctx.sprintResults as any[];
+    console.log(`通过: ${sr.filter(r => r.success).length}/${sr.length}`);
+  }
+  if (ctx.deployedUrl) {
+    console.log(`部署: ${ctx.deployedUrl}`);
+  }
+  console.log(`DevOps: ${ctx.devopsAgent ? '已启动' : '未启动'}`);
+  console.log(`Marketing: ${ctx.marketingAgent ? '已启动' : '未启动'}`);
+  console.log(`${'='.repeat(60)}
+  `);
 
   pipeline.shutdown();
 }
@@ -612,40 +621,46 @@ async function main() {
 
   if (args.length === 0) {
     console.log(`
-Snake of Mercury - Unified Autopilot
+Snake of Mercury - Unified Autopilot v2.1
 
 用法:
   npm run harness -- "你的产品需求"
-  npm run harness -- "build a blog with comments"
 
-选项:
-  --project <dir>    指定项目目录 (默认: 当前目录)
-  --max-iterations   最大迭代次数 (默认: 50)
-  --model <model>    使用的模型 (默认: sonnet)
+模式:
+  HARNESS_MODE=pipeline  Pipeline 模式 (默认，推荐)
+  HARNESS_MODE=legacy    旧版硬编码模式
+
+引擎:
+  HARNESS_ENGINE=minimax   MiniMax M2.7 (默认)
+  HARNESS_ENGINE=claude    Anthropic Claude
+  HARNESS_ENGINE=openai    OpenAI 兼容 API
+  HARNESS_ENGINE=ollama    本地 Ollama
+  HARNESS_ENGINE=auto      自动选择
     `);
     process.exit(1);
   }
 
-  // 解析参数
   const requirement = args[0];
   const projectDir = process.cwd();
-  const maxIterations = 50;
+  const engine = (process.env.HARNESS_ENGINE || 'minimax') as AgentEngine;
 
-  const engine = (process.env.HARNESS_ENGINE || "claude") as AgentEngine;
-  const model = process.env.HARNESS_MODEL || "sonnet";
-  
-  console.log(`引擎: ${engine} | 模型: ${model}`);
-  
-  const config: HarnessConfig = {
-    requirement,
-    projectDir,
-    maxIterations,
-    model, engine,
-    autoDeploy: true
-  };
+  console.log(`🐍 Snake of Mercury v2.1 | 引擎: ${engine} | 模式: ${process.env.HARNESS_MODE || 'pipeline'}`);
+  console.log(`需求: ${requirement.slice(0, 100)}`);
 
   try {
-    await runHarnessLoop(config);
+    if (process.env.HARNESS_MODE === 'legacy') {
+      const config: HarnessConfig = {
+        requirement,
+        projectDir,
+        maxIterations: 50,
+        model: process.env.HARNESS_MODEL || 'sonnet',
+        engine,
+        autoDeploy: true,
+      };
+      await runHarnessLoop(config);
+    } else {
+      await runPipelineLoop(requirement, projectDir, engine);
+    }
   } catch (error) {
     console.error('Fatal error:', error);
     process.exit(1);
@@ -654,6 +669,7 @@ Snake of Mercury - Unified Autopilot
 
 // 执行
 main().catch(console.error);
+
 
 // ============= 工具函数 =============
 

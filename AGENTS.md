@@ -7,44 +7,52 @@
 
 ---
 
-## 一、当前架构状态（2026-05-12 审计结果）
+## 一、当前架构状态（2026-05-12 审计+合并）
 
-⚠️ **架构分裂**：项目存在两条独立的执行路径，尚未合并。
+✅ **两条路径已合并**。
+> snake-of-mercury@1.0.0 harness
+> tsx src/harness-scheduler.ts
 
-### 路径 A: runHarnessLoop（主路径，`npm run harness`）
 
-```
-harness-scheduler.ts (690行硬编码)
-├── Phase 0: executeHubDebate → debate-engine-hub.ts → phase0-debate-engine.ts (5 Agent 文件辩论)
-├── Phase 1: executePlanner() → planner-agent.ts (直接函数调用)
-├── Phase 2: RalphWiggumLoop → executeGenerator() + executeEvaluator() + executeSprintPlan()
-├── Phase 3: executePhase3Delivery() → phase3-delivery.ts
-└── 收敛: convergence-detector.ts
-```
+Snake of Mercury - Unified Autopilot v2.1
 
-**特点**: Planner/Generator/Evaluator 三者之间是同一进程内的同步函数调用链，不经过任何消息总线。
-**缺失**: SwarmCoordinator 和 DevOps/Marketing Agent 虽已实例化但未参与核心调度。
+用法:
+  npm run harness -- "你的产品需求"
 
-### 路径 B: runPipelineLoop（新路径，`npm run pipeline`）
+模式:
+  HARNESS_MODE=pipeline  Pipeline 模式 (默认，推荐)
+  HARNESS_MODE=legacy    旧版硬编码模式
 
-```
-Pipeline (middleware/pipeline.ts)
-├── PlannerMiddleware → GeneratorMiddleware → EvaluatorMiddleware → DeliveryMiddleware
-├── 通过 PipelineContext 共享状态
-├── 通过 SwarmCoordinator 管理生命周期
-└── 通过 AgentMemory 持久化
-```
+引擎:
+  HARNESS_ENGINE=minimax   MiniMax M2.7 (默认)
+  HARNESS_ENGINE=claude    Anthropic Claude
+  HARNESS_ENGINE=openai    OpenAI 兼容 API
+  HARNESS_ENGINE=ollama    本地 Ollama
+  HARNESS_ENGINE=auto      自动选择
+     默认走 Pipeline 路径（原路径 B），旧路径通过  保留。
 
-**特点**: 将 Agent 包装为可组合的 Middleware，解除硬编码依赖。
-**缺失**: 缺少 Phase 0 中间件，尚未替代路径 A，未经过端到端验证。
+### 统一后的 Pipeline
 
-### 合并方向
 
-- 短期：在 `runPipelineLoop` 中补充 Phase 0 中间件，验证端到端可运行
-- 中期：将 `npm run harness` 默认入口切换到 Pipeline 路径
-- 长期：移除 `runHarnessLoop` 硬编码版本
 
----
+**新增能力**：
+- SwarmCoordinator 管理全部 8 个 Agent 的生命周期（心跳、注册、任务追踪）
+- DevOps Agent 在 Phase 3 部署成功后自动注册端点并启动监控
+- Marketing Agent 在部署后自动发布推广内容到 12 平台 + 启动数据采集
+- Ralph Loop 内嵌于 Generator/Evaluator（每 Sprint 最多重试 3 次）
+- 外循环由 Convergence 中间件控制（最多 5 次全局迭代）
+
+### PipelineContext 关键字段
+
+| 字段 | 写入者 | 读取者 | 说明 |
+|------|--------|--------|------|
+|  | Phase0 | Planner | 辩论收敛后的需求 |
+|  | Planner | Generator, Evaluator | 产品规格+Sprint计划 |
+|  | GenEval | Convergence | Sprint执行结果 |
+|  | Delivery | DevOps, Marketing | 部署URL |
+|  | Convergence | Pipeline.run() | 是否停止外循环 |
+|  | DevOps | Pipeline.shutdown() | 清理监控 |
+|  | Marketing | Pipeline.shutdown() | 清理采集 |
 
 ## 二、Agent 通信协议
 
