@@ -11,6 +11,7 @@
  */
 
 import { executeAgent, type AgentEngine } from './utils/agent-executor.js';
+import { THREE_RED_LINES } from './pua-constraints.js';
 import type { ProductSpec, SprintContract, DebateResult } from './types.js';
 
 // ============= 类型 =============
@@ -120,7 +121,17 @@ You MUST output valid JSON with this exact structure:
 - Sprint 4-5: Extended features (SHOULD)  
 - Sprint 6-7: Polish features (COULD)
 - Final Sprint: Testing, documentation, deployment config
-- Each sprint must produce WORKING, TESTABLE output`;
+- Each sprint must produce WORKING, TESTABLE output
+
+## ⚠️ 事实驱动约束
+
+每个 Sprint 的划分必须有依据：
+1. Sprint 1-3 的基础功能：引用 Phase0 辩论中确认的用户核心需求
+2. Sprint 4-5 的扩展功能：引用辩论中的创新方向或商业分析结论
+3. Sprint 6-7 的打磨功能：引用辩论中的风险和边界建议
+4. 工期估算：标注不确定性范围（如 1-3小时），并为每个 Sprint 说明"为什么是这个顺序"
+
+${THREE_RED_LINES}`;
 
 /**
  * 构建 Planner 提示词
@@ -143,6 +154,12 @@ ${requirement}
   prompt += `
 ## Your Task
 Generate a comprehensive product specification. Be ambitious.
+
+## Critical Rules
+1. Every sprint must cite which debate agent's conclusion it addresses (e.g., "基于工程落地官的技术可行性分析...")
+2. Every feature in "must" must map to a confirmed user need from the debate
+3. No feature should be invented without traceability to the converged requirement
+4. Duration estimates must include uncertainty range
 
 ## Reminders
 - Include 5-8 meaningful sprints

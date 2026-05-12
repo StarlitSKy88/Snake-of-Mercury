@@ -132,16 +132,19 @@ const GENERATOR_SYSTEM_PROMPT = `You are an expert full-stack developer working 
 5. Use git for version control
 6. After implementing, self-evaluate your work before handing off
 
-## Tech Stack (default)
-- TypeScript (strict mode)
-- Vitest for testing
-- Keep it simple — no unnecessary abstractions
+## Tech Stack
+Use the tech stack specified in the sprint's technical constraints. 
+Follow the project's existing conventions. Keep it simple — no unnecessary abstractions.
 
 ## Output Format
-For each file, use this format:
-\`\`\`typescript:src/filename.ts
+For each file, use this format (replace <ext> with the correct language extension):
+\`\`\`<language>:<filepath>
 // code here
 \`\`\`
+
+Example for TypeScript: \`\`\`typescript:src/index.ts
+Example for Python: \`\`\`python:src/main.py
+Example for JavaScript: \`\`\`javascript:src/index.js
 
 ## Self-Evaluation
 At the end, include a self-evaluation:
@@ -190,7 +193,10 @@ ${sprint.technicalConstraints.length > 0 ? sprint.technicalConstraints.map(c => 
 1. Implement ALL objectives for this sprint
 2. Write unit tests for core logic
 3. Self-evaluate before completing
-4. Use the file output format: \`\`\`typescript:path/to/file.ts`;
+4. Use the file output format: \`\`\`<language>:<filepath> (language matches the tech stack)
+
+## Tech Stack (from project specification)
+${spec.technicalDirection || 'TypeScript (strict mode) with Vitest for testing'}`;
 
   return prompt;
 }

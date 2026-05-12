@@ -180,6 +180,13 @@ Score each dimension from 1-10:
   "recommendations": ["recommendation 1"]
 }
 
+## Evaluation Method (CRITICAL)
+You MUST evaluate each acceptance criterion ONE BY ONE:
+1. For each criterion, repeat it verbatim, then state PASS or FAIL
+2. For each FAIL, cite the specific code lines that caused the failure
+3. Only after all criteria are individually checked, calculate dimension scores
+4. Your dimension scores must be justified by the criteria results (not arbitrary)
+
 ## Rules
 - Be SKEPTICAL — bias toward finding issues
 - Do NOT praise mediocre work
@@ -198,18 +205,19 @@ ${sprintContract || sprint.objectives.join('; ')}
 ${sprint.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
 ## Product Context
-${spec.overview.slice(0, 500)}
+${spec.overview}
 
 ## Generator Output (CODE TO EVALUATE)
 \`\`\`
-${generatorOutput.slice(0, 8000)}
+${generatorOutput}
 \`\`\`
 
 ## Your Task
-1. Evaluate against ALL acceptance criteria
-2. Score each dimension with justification
+1. Go through EACH acceptance criterion one by one — state the criterion, then PASS/FAIL with evidence
+2. After individual criteria check, score each dimension with justification
 3. Be strict — biased toward finding real issues
-4. Output ONLY valid JSON`;
+4. If ANY criterion fails, verdict must be REJECTED
+5. Output ONLY valid JSON`;
 }
 
 // ============= 输出解析 =============

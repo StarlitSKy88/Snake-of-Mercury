@@ -43,10 +43,6 @@ import { executeGenerator, negotiateSprintContract } from './generator-agent.js'
 import { executeEvaluator, reviewSprintContract } from './evaluator-agent.js';
 
 import {
-  executeSprintPlan
-} from './developer-supervisor.js';
-
-import {
   detectConvergence,
   createSnapshot,
   hasValueImprovement,

@@ -17,6 +17,7 @@ import type { Middleware, PipelineContext } from './pipeline.js';
 import type { AgentDefinition, TaskResult } from '../swarm/swarm-coordinator.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 import { executeAgent } from '../utils/agent-executor.js';
+import { THREE_RED_LINES } from '../pua-constraints.js';
 
 // 动态导入
 let _executePlanner: Function | null = null;
@@ -78,10 +79,17 @@ const PHASE0_TEMPLATE = `
 2. Problem statement（问题陈述 + why now）
 3. JTBD（用户待办任务 + 目标人群）
 4. Current alternatives + gaps（替代方案 + 缺口）
-5. Evidence & assumptions log（证据 + 假设日志，字符串数组）
+5. Evidence & assumptions log（证据 + 假设日志，每个条目必须标注 [证据] 或 [假设] 前缀）
+   - [证据] 标记：来自 feedbackData 或可验证的事实
+   - [假设] 标记：你的推断，需注明推理依据
 6. Success criteria + guardrails（成功标准 + 护栏，字符串数组）
 7. Scope boundaries（范围边界 in/out，各字符串数组）
 8. Prototype / learning plan（原型验证计划）
+
+## 关键约束
+- 如果你没有相关数据，请在对应字段标注"数据不足，以下为基于经验的推断 [假设]"
+- 禁止凭空编造市场数据、用户数据
+- 每个 success criteria 必须是可测试的（不能是模糊的"用户体验好"）
 
 请以 JSON 格式输出。
 `;
@@ -107,8 +115,19 @@ export function createPhase0Middleware(engine: AgentEngine = 'minimax'): Middlew
         .replace('{requirement}', ctx.convergedRequirement || ctx.requirement)
         .replace('{feedbackData}', feedbackData);
 
+      const phase0SystemPrompt = '你是一个严谨的产品分析师，专门为AI自动化开发项目做需求澄清。\n\n' +
+        '## 你的核心原则\n' +
+        '1. **区分事实与假设**：每个判断必须标注是来自数据([证据])还是你的推断([假设])\n' +
+        '2. **宁可留白也不编造**：数据不足时明确标注"数据不足"，不要凭空填充\n' +
+        '3. **关注可测试性**：所有成功标准必须可验证（不是"用户体验好"这种模糊表述）\n\n' +
+        '## 输出规则\n' +
+        '- 严格 JSON 格式\n' +
+        '- Evidence & assumptions 数组的每个元素以 [证据] 或 [假设] 开头\n' +
+        '- Success criteria 必须是具体、可测量、可验证的\n\n' +
+        THREE_RED_LINES;
+
       const pdResult = await executeAgent(
-        '你是一个资深产品分析师。基于需求和用户数据，输出严格 JSON 格式的问题定义。',
+        phase0SystemPrompt,
         prompt,
         { engine: ctx.engine, timeout: 120000 }
       );
