@@ -107,12 +107,22 @@ export async function executePhase0Debate(
   // 2. 市场调研：搜索 GitHub 同类项目
   console.log('[Phase 0] 🔍 市场调研（GitHub 搜索）...');
   try {
-    const mr = await searchGitHub(problemDefinition.problemStatement || '');
-    if (mr) {
-      console.log('[Phase 0] 📊 市场调研完成，注入上下文');
+    const [ghResults, phResults] = await Promise.all([
+      searchGitHub(problemDefinition.problemStatement || ''),
+      searchProductHunt(problemDefinition.problemStatement || ''),
+    ]);
+
+    const mrParts: string[] = [];
+    if (ghResults) mrParts.push('## GitHub 同类项目\n' + ghResults);
+    if (phResults) mrParts.push('## ProductHunt 类似产品\n' + phResults);
+
+    if (mrParts.length > 0) {
+      console.log('[Phase 0] 📊 市场调研完成（GitHub + ProductHunt），注入上下文');
       problemDefinition.contextSnapshot = (problemDefinition.contextSnapshot || '') +
-        '\n\n## 🔍 市场调研（GitHub 同类项目搜索）\n' + mr +
+        '\n\n## 🔍 市场调研（自动搜索）\n' + mrParts.join('\n\n') +
         '\n\n⚠️ 请基于以上市场调研来评估创新性。如果我们的方案与这些项目没有本质区别，请明确指出。';
+    } else {
+      console.log('[Phase 0] ⚠️ 所有搜索源不可用，跳过市场调研');
     }
   } catch (e) {
     console.log('[Phase 0] ⚠️ 市场调研跳过（gh CLI 不可用）');
@@ -809,6 +819,27 @@ async function execClaudeSDKWithTimeout(
 /**
  * 搜索 GitHub 同类项目（使用 gh CLI）
  */
+async function searchProductHunt(query: string): Promise<string> {
+  try {
+    const { execCommand: ec } = await import('./utils/agent-executor.js');
+    const result = await ec('curl', [
+      '-s', '-H', 'Accept: application/json',
+      'https://api.producthunt.com/v2/api/graphql',
+      '-X', 'POST',
+      '-H', 'Content-Type: application/json',
+      '-d', '{"query":"{posts(search:\"' + query + '\",first:5){edges{node{name tagline votesCount url}}}}"}'
+    ], { timeout: 10000 });
+    if (result.success && result.stdout) {
+      const data = JSON.parse(result.stdout);
+      const posts = data?.data?.posts?.edges || [];
+      if (posts.length > 0) {
+        return posts.map((e: any) => '- ProductHunt: ' + e.node.name + ' (' + e.node.votesCount + ' votes): ' + e.node.tagline).join('\n');
+      }
+    }
+  } catch { /* PH not available */ }
+  return '';
+}
+
 async function searchGitHub(requirement: string): Promise<string> {
   const words = requirement.slice(0, 100)
     .replace(/[^a-zA-Z0-9\u4e00-\u9fff\s]/g, ' ')

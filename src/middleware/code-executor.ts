@@ -185,18 +185,47 @@ export async function executeCode(
     }
 
     case 'html': {
-      // HTML 项目：只做语法检查（用 node 解析器）
+      // HTML 项目：用 Node.js DOM 解析器验证结构完整性
       const htmlFiles = written.filter(f => f.endsWith('.html'));
       if (htmlFiles.length > 0) {
+        const issues: string[] = [];
+        let hasCanvas = false;
+        let hasScript = false;
+        let hasGameLoop = false;
+
+        for (const file of htmlFiles) {
+          const fs = await import('fs');
+          const content = fs.readFileSync(file, 'utf-8');
+          
+          // 验证 HTML 结构
+          if (!/<!DOCTYPE html>/i.test(content)) issues.push(`${file}: 缺少 DOCTYPE`);
+          if (!/<canvas/i.test(content)) issues.push(`${file}: 缺少 canvas 元素`);
+          else hasCanvas = true;
+          if (!/<script>/i.test(content) && !/<script /i.test(content)) issues.push(`${file}: 缺少 script 标签`);
+          else hasScript = true;
+          
+          // 验证关键函数存在
+          if (/function\s+startGame/i.test(content) || /const\s+startGame/i.test(content)) hasGameLoop = true;
+          
+          // 验证渲染循环：必须调用 requestAnimationFrame 或 setInterval
+          const hasRenderLoop = /requestAnimationFrame/i.test(content) || /setInterval.*draw/i.test(content);
+          if (!hasRenderLoop) issues.push(`${file}: ⚠️ 未检测到渲染循环（requestAnimationFrame/setInterval draw）`);
+          
+          // 验证事件绑定
+          const hasKeyHandler = /addEventListener.*key/i.test(content) || /onkey/i.test(content);
+          if (!hasKeyHandler) issues.push(`${file}: ⚠️ 未检测到键盘事件处理`);
+          
+          // 验证文件大小
+          if (content.length < 2000) issues.push(`${file}: 文件过小 (${content.length} bytes)，可能不完整`);
+        }
+
         evidence.build = {
-          command: 'HTML validation',
-          success: true,
-          output: `检测到 ${htmlFiles.length} 个 HTML 文件：\n${htmlFiles.join('\n')}\n文件大小: ${htmlFiles.map(f => {
-            const fs = require('fs');
-            return `${f}: ${fs.statSync(f).size} bytes`;
-          }).join('\n')}`,
+          command: 'HTML 结构验证',
+          success: issues.length === 0,
+          output: `Canvas: ${hasCanvas ? '✅' : '❌'} | Script: ${hasScript ? '✅' : '❌'} | 游戏循环: ${hasGameLoop ? '✅' : '❌'}\n` +
+            (issues.length > 0 ? '问题:\n' + issues.join('\n') : '结构验证通过'),
         };
-        evidence.summary += `[HTML] ${htmlFiles.length} 个文件已写入，可在浏览器中打开验证。\n`;
+        evidence.summary += `[HTML] ${htmlFiles.length} 文件 | ${issues.length} 个问题\n`;
       }
       break;
     }
