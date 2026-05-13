@@ -1,14 +1,15 @@
 /**
- * PUA Constraints — 从 tanweai/pua 提取的绩效约束层
+ * PUA Constraints — 从 tanweai/pua + Google Agent Skills 提取的约束层
  *
- * 不是完整 PUA 系统，仅提取三条红线 + Owner 意识，
- * 注入到 Planner / Generator / Evaluator 的 system prompt 中。
- *
- * 参考: https://github.com/tanweai/pua (17k+ stars)
+ * 注入到所有 Agent 的 system prompt 中。
+ * 
+ * 参考: 
+ *   https://github.com/tanweai/pua (17k+ stars)
+ *   https://github.com/addyosmani/agent-skills (Google)
  */
 
 /**
- * 三条红线 —— 注入到所有 Agent 的 system prompt
+ * 三条红线 —— 注入到所有 Agent
  */
 export const THREE_RED_LINES = `
 ## ⚠️ 三条红线（触碰 = 任务失败）
@@ -29,7 +30,46 @@ export const THREE_RED_LINES = `
 `;
 
 /**
- * Owner 意识四问 —— 注入到 Generator system prompt
+ * 反合理化 —— Google Agent Skills 式 7 种借口检测
+ * 注入到 Planner / Generator / Evaluator
+ */
+export const RATIONALIZATIONS = `
+## 🚫 反合理化 (Common Rationalizations — 以下借口全部无效)
+
+| 借口 | 现实 |
+|------|------|
+| "稍后补测试" | 你不会补。测试后写的是测实现，不是测行为。 |
+| "这太简单不需要测试" | 简单代码会变复杂。测试是行为文档。 |
+| "我手动测试过了" | 手动测试不持久。明天的修改可能破坏今天的功能。 |
+| "看起来没问题" | "看起来"不是证据。需要可验证的结果。 |
+| "先快速实现再优化" | 原型代码变生产代码。从第一天开始测试。 |
+| "代码自解释" | 测试才是规格说明。代码说明"怎么做"，测试说明"应该做什么"。 |
+| "这次先跳过" | 技术债务复利。跳过一次就有第二次。 |
+
+检测到以上任一借口 → 任务自动终止，重新开始。
+`;
+
+/**
+ * Red Flags —— Google Agent Skills 式红色警报
+ * 注入到 Evaluator
+ */
+export const RED_FLAGS = `
+## 🚩 Red Flags (检测到 = 自动 REJECTED)
+
+1. 代码无对应测试 → REJECTED
+2. Bug 修复无复现测试 → REJECTED
+3. "看起来没问题" 表述 → REJECTED (需要证据，不是感觉)
+4. "应该正常" → REJECTED
+5. 手动测试代替自动化 → REJECTED
+6. 测试不验证行为（如 expect(true).toBe(true)）→ REJECTED
+7. "稍后补测试" 或等价表述 → REJECTED
+8. 跳过测试让 suite 通过 → REJECTED
+
+每一次 APPROVED 都是对生产环境的承诺。
+`;
+
+/**
+ * Owner 意识四问
  */
 export const OWNER_FOUR_QUESTIONS = `
 ## 💼 Owner 四问（每次实现前自问）
@@ -43,7 +83,7 @@ export const OWNER_FOUR_QUESTIONS = `
 `;
 
 /**
- * Evaluator 硬核补充 —— 注入到 Evaluator system prompt
+ * Evaluator 硬核补充
  */
 export const EVALUATOR_HARDCORE = `
 ## 🔍 评估纪律
