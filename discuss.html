@@ -10,6 +10,7 @@
   --surface: #1a1a18;
   --line: #2A2A28;
   --accent: #C0392B;
+  --green: #4CAF50;
   --text: #e0e0d8;
   --muted: #888880;
 }
@@ -29,10 +30,23 @@ header {
   align-items: center;
   gap: 10px;
   background: var(--surface);
+  flex-shrink: 0;
 }
 header h1 { font-size: 16px; font-weight: 400; }
-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; }
-header .status { font-size: 12px; color: var(--muted); }
+header .dot { width: 8px; height: 8px; border-radius: 50%; }
+header .dot.online { background: var(--green); }
+header .dot.offline { background: var(--accent); }
+header .status { font-size: 12px; color: var(--muted); margin-left: auto; }
+header button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 4px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+header button:hover { border-color: var(--accent); color: var(--text); }
 #messages {
   flex: 1;
   overflow-y: auto;
@@ -42,42 +56,64 @@ header .status { font-size: 12px; color: var(--muted); }
   gap: 16px;
 }
 .msg {
-  max-width: 80%;
+  max-width: 85%;
   padding: 12px 16px;
   border-radius: 12px;
-  line-height: 1.6;
+  line-height: 1.7;
   font-size: 14px;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 .msg.user {
   align-self: flex-end;
   background: var(--accent);
   color: #fff;
+  border-bottom-right-radius: 4px;
 }
 .msg.agent {
   align-self: flex-start;
   background: var(--surface);
   border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+.msg.agent .label { 
+  font-size: 11px; 
+  color: var(--accent); 
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.msg .doc-block {
+  background: #0a0a08;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  font-family: monospace;
+  font-size: 13px;
+}
+.msg .save-badge {
+  display: inline-block;
+  background: var(--green);
+  color: #000;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-top: 8px;
 }
 .msg.system {
   align-self: center;
   color: var(--muted);
   font-size: 12px;
-  font-style: italic;
+  text-align: center;
+  max-width: 70%;
 }
-.msg .label {
-  font-size: 11px;
-  color: var(--muted);
-  margin-bottom: 4px;
-}
-.msg.agent .label { color: var(--accent); }
-
 #input-area {
   padding: 16px 20px;
   border-top: 1px solid var(--line);
   display: flex;
   gap: 10px;
   background: var(--surface);
+  flex-shrink: 0;
 }
 #input-area input {
   flex: 1;
@@ -90,6 +126,7 @@ header .status { font-size: 12px; color: var(--muted); }
   outline: none;
 }
 #input-area input:focus { border-color: var(--accent); }
+#input-area input:disabled { opacity: 0.4; }
 #input-area button {
   background: var(--accent);
   color: #fff;
@@ -98,15 +135,16 @@ header .status { font-size: 12px; color: var(--muted); }
   border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
+  white-space: nowrap;
 }
-#input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.loading { display: flex; gap: 4px; padding: 4px 0; }
+#input-area button:disabled { opacity: 0.4; cursor: not-allowed; }
+.loading { display: inline-flex; gap: 4px; padding: 4px 0; }
 .loading span {
   width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--muted);
   animation: bounce 1.4s infinite ease-in-out;
+  display: inline-block;
 }
 .loading span:nth-child(2) { animation-delay: 0.2s; }
 .loading span:nth-child(3) { animation-delay: 0.4s; }
@@ -119,14 +157,14 @@ header .status { font-size: 12px; color: var(--muted); }
 <body>
 
 <header>
-  <div class="dot"></div>
+  <div class="dot online" id="dot"></div>
   <h1>Phase 0 · 需求讨论</h1>
   <span class="status" id="status">就绪</span>
+  <button onclick="resetSession()" title="重新开始">↺ 新对话</button>
 </header>
 
 <div id="messages">
-  <div class="msg system">👋 你好！我是需求讨论 Agent。告诉我你的创业想法，我会帮你梳理、质疑、深化。</div>
-  <div class="msg system">我会做：市场调研 → 假设分析 → 多方案对比 → 范围建议 → 输出需求文档</div>
+  <div class="msg system">👋 告诉我你的创业想法，我会通过提问帮你梳理清楚。</div>
 </div>
 
 <div id="input-area">
@@ -135,33 +173,53 @@ header .status { font-size: 12px; color: var(--muted); }
 </div>
 
 <script>
+const SESSION_ID = 'phase0-' + Date.now();
 const messages = document.getElementById('messages');
 const input = document.getElementById('user-input');
 const btn = document.getElementById('send-btn');
 const statusEl = document.getElementById('status');
+const dot = document.getElementById('dot');
 
 function addMsg(text, role) {
   const div = document.createElement('div');
   div.className = 'msg ' + role;
-  if (role === 'agent') div.innerHTML = '<div class="label">🧠 需求讨论 Agent</div>' + text;
-  else if (role === 'user') div.innerHTML = '<div class="label">你</div>' + text;
-  else div.textContent = text;
+  
+  if (role === 'agent') {
+    // 渲染文档块
+    let html = '<div class="label">🧠 需求讨论 Agent</div>';
+    const docMatch = text.match(/```REQUIREMENT\n([\s\S]*?)```/);
+    if (docMatch) {
+      const parts = text.split(/```REQUIREMENT[\s\S]*?```/);
+      html += parts[0].replace(/\n/g, '<br>');
+      html += '<div class="doc-block">' + docMatch[1].replace(/\n/g, '<br>') + '</div>';
+      if (parts[1]) html += parts[1].replace(/\n/g, '<br>');
+    } else {
+      html += text.replace(/\n/g, '<br>');
+    }
+    if (text.includes('READY_TO_SAVE')) {
+      html += '<div class="save-badge">✅ 已保存 REQUIREMENT.md</div>';
+    }
+    div.innerHTML = html;
+  } else if (role === 'user') {
+    div.textContent = text;
+  } else {
+    div.textContent = text;
+  }
+  
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
 }
 
+let loadingDiv = null;
 function showLoading() {
-  const div = document.createElement('div');
-  div.className = 'msg agent';
-  div.id = 'loading-msg';
-  div.innerHTML = '<div class="label">🧠 需求讨论 Agent</div><div class="loading"><span></span><span></span><span></span></div>';
-  messages.appendChild(div);
+  loadingDiv = document.createElement('div');
+  loadingDiv.className = 'msg agent';
+  loadingDiv.innerHTML = '<div class="label">🧠 需求讨论 Agent</div><div class="loading"><span></span><span></span><span></span></div>';
+  messages.appendChild(loadingDiv);
   messages.scrollTop = messages.scrollHeight;
 }
-
 function hideLoading() {
-  const el = document.getElementById('loading-msg');
-  if (el) el.remove();
+  if (loadingDiv) { loadingDiv.remove(); loadingDiv = null; }
 }
 
 async function sendMessage() {
@@ -179,33 +237,59 @@ async function sendMessage() {
     const res = await fetch('/api/discuss', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ message: text, sessionId: SESSION_ID })
     });
     const data = await res.json();
     hideLoading();
 
     if (data.success) {
-      addMsg(data.summary, 'agent');
-      if (data.path) {
-        addMsg('📄 需求文档已保存: ' + data.path + '\n\n审查后运行 npm run v3 开始构建', 'system');
+      addMsg(data.reply, 'agent');
+      if (data.readyToSave) {
+        statusEl.textContent = '需求文档已保存';
+        addMsg('📄 需求文档已保存到 .tasks/REQUIREMENT.md\n\n运行 npm run v3 开始构建', 'system');
+        btn.textContent = '✅ 完成';
+        btn.style.background = 'var(--green)';
+        btn.onclick = () => { addMsg('运行: npm run v3', 'system'); };
+      } else {
+        statusEl.textContent = '等待你的回复...';
       }
-      statusEl.textContent = '完成';
     } else {
-      addMsg('❌ 处理失败: ' + (data.error || '未知错误'), 'system');
+      addMsg('❌ ' + (data.error || '处理失败'), 'system');
       statusEl.textContent = '错误';
     }
   } catch (err) {
     hideLoading();
     addMsg('❌ 连接失败: 请确认 npm run discuss 已启动', 'system');
     statusEl.textContent = '离线';
+    dot.className = 'dot offline';
   }
 
   input.disabled = false;
-  btn.disabled = false;
+  btn.disabled = (statusEl.textContent === '需求文档已保存');
   input.focus();
 }
 
-input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+async function resetSession() {
+  try {
+    await fetch('/api/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: SESSION_ID })
+    });
+  } catch(e) {}
+  messages.innerHTML = '<div class="msg system">👋 新对话开始。告诉我你的创业想法。</div>';
+  statusEl.textContent = '就绪';
+  input.disabled = false;
+  btn.disabled = false;
+  btn.textContent = '发送';
+  btn.style.background = 'var(--accent)';
+  btn.onclick = sendMessage;
+  input.focus();
+}
+
+input.addEventListener('keydown', e => { 
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
 </script>
 </body>
 </html>
