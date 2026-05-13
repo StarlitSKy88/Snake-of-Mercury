@@ -107,17 +107,17 @@ export async function executePhase0Debate(
   // 2. 市场调研：搜索 GitHub 同类项目
   console.log('[Phase 0] 🔍 市场调研（GitHub 搜索）...');
   try {
-    const [ghResults, phResults] = await Promise.all([
+    const [ghResults, hnResults] = await Promise.all([
       searchGitHub(problemDefinition.problemStatement || ''),
-      searchProductHunt(problemDefinition.problemStatement || ''),
+      searchHackerNews(problemDefinition.problemStatement || ''),
     ]);
 
     const mrParts: string[] = [];
-    if (ghResults) mrParts.push('## GitHub 同类项目\n' + ghResults);
-    if (phResults) mrParts.push('## ProductHunt 类似产品\n' + phResults);
+    if (ghResults) mrParts.push('## GitHub 同类开源项目\n' + ghResults);
+    if (hnResults) mrParts.push('## HackerNews 社区讨论\n' + hnResults);
 
     if (mrParts.length > 0) {
-      console.log('[Phase 0] 📊 市场调研完成（GitHub + ProductHunt），注入上下文');
+      console.log('[Phase 0] 📊 市场调研完成（GitHub + HackerNews），注入上下文');
       problemDefinition.contextSnapshot = (problemDefinition.contextSnapshot || '') +
         '\n\n## 🔍 市场调研（自动搜索）\n' + mrParts.join('\n\n') +
         '\n\n⚠️ 请基于以上市场调研来评估创新性。如果我们的方案与这些项目没有本质区别，请明确指出。';
@@ -819,24 +819,28 @@ async function execClaudeSDKWithTimeout(
 /**
  * 搜索 GitHub 同类项目（使用 gh CLI）
  */
-async function searchProductHunt(query: string): Promise<string> {
+/**
+ * 搜索 HackerNews（Algolia API，完全免费，无需 Key）
+ * 返回社区讨论热度最高的相关项目
+ */
+async function searchHackerNews(query: string): Promise<string> {
   try {
     const { execCommand: ec } = await import('./utils/agent-executor.js');
-    const result = await ec('curl', [
-      '-s', '-H', 'Accept: application/json',
-      'https://api.producthunt.com/v2/api/graphql',
-      '-X', 'POST',
-      '-H', 'Content-Type: application/json',
-      '-d', '{"query":"{posts(search:\"' + query + '\",first:5){edges{node{name tagline votesCount url}}}}"}'
-    ], { timeout: 10000 });
+    const url = 'https://hn.algolia.com/api/v1/search?query=' +
+      encodeURIComponent(query) + '&hitsPerPage=5&tags=show_hn,story';
+    const result = await ec('curl', ['-s', url], { timeout: 10000 });
     if (result.success && result.stdout) {
       const data = JSON.parse(result.stdout);
-      const posts = data?.data?.posts?.edges || [];
-      if (posts.length > 0) {
-        return posts.map((e: any) => '- ProductHunt: ' + e.node.name + ' (' + e.node.votesCount + ' votes): ' + e.node.tagline).join('\n');
+      const hits = data?.hits || [];
+      if (hits.length > 0) {
+        return hits.map((h: any) =>
+          '- HN: ' + (h.title || 'untitled') +
+          ' (' + (h.points || 0) + ' pts, ' + (h.num_comments || 0) + ' comments)' +
+          (h.url ? ' — ' + h.url.slice(0, 80) : '')
+        ).join('\n');
       }
     }
-  } catch { /* PH not available */ }
+  } catch { /* HN API not available */ }
   return '';
 }
 

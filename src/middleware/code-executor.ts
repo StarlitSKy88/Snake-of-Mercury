@@ -185,47 +185,92 @@ export async function executeCode(
     }
 
     case 'html': {
-      // HTML 项目：用 Node.js DOM 解析器验证结构完整性
+      // HTML 项目：三层验证
+      // Layer 1: 结构检查（快，约0.1s）
+      // Layer 2: JS 语法检查（快，约0.3s）  
+      // Layer 3: DOM/Event 完整性检查（快，约0.5s）
       const htmlFiles = written.filter(f => f.endsWith('.html'));
       if (htmlFiles.length > 0) {
         const issues: string[] = [];
-        let hasCanvas = false;
-        let hasScript = false;
-        let hasGameLoop = false;
+        const layerResults: string[] = [];
+        let hasCanvas = false, hasScript = false, hasGameLoop = false;
 
         for (const file of htmlFiles) {
           const fs = await import('fs');
-          const content = fs.readFileSync(file, 'utf-8');
+          const rawContent = fs.readFileSync(file, 'utf-8');
+
+          // Layer 1: 结构
+          if (!/<!DOCTYPE html>/i.test(rawContent)) issues.push('L1: 缺少 DOCTYPE');
+          if (/<canvas/i.test(rawContent)) hasCanvas = true;
+          else issues.push('L1: 缺少 canvas 元素');
+          if (/<script[^>]*>/i.test(rawContent)) hasScript = true;
+          else issues.push('L1: 缺少 script 标签');
+          if (rawContent.length < 2000) issues.push('L1: 文件过小(' + rawContent.length + ' bytes)');
+
+          // 提取 JS 代码
+          const scriptMatch = rawContent.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+          const js = scriptMatch ? scriptMatch[1] : '';
           
-          // 验证 HTML 结构
-          if (!/<!DOCTYPE html>/i.test(content)) issues.push(`${file}: 缺少 DOCTYPE`);
-          if (!/<canvas/i.test(content)) issues.push(`${file}: 缺少 canvas 元素`);
-          else hasCanvas = true;
-          if (!/<script>/i.test(content) && !/<script /i.test(content)) issues.push(`${file}: 缺少 script 标签`);
-          else hasScript = true;
-          
-          // 验证关键函数存在
-          if (/function\s+startGame/i.test(content) || /const\s+startGame/i.test(content)) hasGameLoop = true;
-          
-          // 验证渲染循环：必须调用 requestAnimationFrame 或 setInterval
-          const hasRenderLoop = /requestAnimationFrame/i.test(content) || /setInterval.*draw/i.test(content);
-          if (!hasRenderLoop) issues.push(`${file}: ⚠️ 未检测到渲染循环（requestAnimationFrame/setInterval draw）`);
-          
-          // 验证事件绑定
-          const hasKeyHandler = /addEventListener.*key/i.test(content) || /onkey/i.test(content);
-          if (!hasKeyHandler) issues.push(`${file}: ⚠️ 未检测到键盘事件处理`);
-          
-          // 验证文件大小
-          if (content.length < 2000) issues.push(`${file}: 文件过小 (${content.length} bytes)，可能不完整`);
+          // Layer 2: JS 语法验证
+          if (js) {
+            try {
+              new Function(js);
+              layerResults.push('L2: JS 语法 ✅');
+            } catch (e: any) {
+              issues.push('L2: JS 语法错误 — ' + e.message.slice(0, 100));
+            }
+          }
+
+          // Layer 3: 关键函数 + 调用链完整性
+          const fnCalls = js.match(/(\w+)\(/g)?.map(c => c.slice(0, -1)) || [];
+          const fnDefs = js.match(/function\s+(\w+)/g)?.map(d => d.split(/\s+/)[1]) || [];
+          fnDefs.push(...(js.match(/(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>)/g) || []).map(d => d.split(/\s+/)[1]));
+
+          // 检查游戏入口函数
+          const entryFns = ['startGame', 'init', 'main', 'setup'];
+          const hasEntry = entryFns.some(f => fnDefs.includes(f) || fnCalls.includes(f));
+          if (!hasEntry) issues.push('L3: 未找到游戏入口函数(startGame/init/main/setup)');
+
+          // 检查渲染循环
+          const hasRenderLoop = /requestAnimationFrame|setInterval.*draw|setTimeout.*gameLoop/i.test(js);
+          if (hasRenderLoop) hasGameLoop = true;
+          else issues.push('L3: ⚠️ 未检测到渲染循环(requestAnimationFrame/setInterval draw)');
+
+          // 检查事件处理
+          const events = js.match(/addEventListener\s*\(\s*['"](\w+)['"]/g)?.map(e => e.match(/['"](\w+)['"]/)?.[1]) || [];
+          const hasInput = events.includes('keydown') || events.includes('keyup') || events.includes('click') || events.includes('touchstart');
+          if (!hasInput) issues.push('L3: ⚠️ 未检测到用户输入事件(keydown/click/touchstart)');
+
+          // 检查 Canvas API
+          const hasCanvasAPI = /getContext\s*\(\s*['"]2d['"]\s*\)/.test(js) || /getContext\s*\(\s*['"]webgl/i.test(js);
+          if (hasCanvas && !hasCanvasAPI) issues.push('L3: 有canvas元素但未调用getContext("2d")');
+
+          // 检查调用链：入口函数是否触发了渲染
+          if (hasEntry && hasGameLoop) {
+            const entryFnName = entryFns.find(f => fnDefs.includes(f)) || 'startGame';
+            // 简单检查：入口函数体内是否包含渲染调用
+            const entryRegex = new RegExp('function\\s+' + entryFnName + '\\s*\\([^)]*\\)\\s*\\{[^}]+\\}', 's');
+            const entryBody = js.match(entryRegex)?.[0] || '';
+            if (entryBody && !/requestAnimationFrame|setInterval|setTimeout/.test(entryBody) && !/draw\s*\(/.test(entryBody)) {
+              issues.push('L3: 🔴 入口函数(' + entryFnName + ')未触发渲染循环——游戏可能无法启动！');
+            }
+          }
+
+          layerResults.push('L3: 函数' + fnDefs.length + '个, 事件' + events.length + '个');
         }
 
         evidence.build = {
-          command: 'HTML 结构验证',
+          command: 'HTML 三层验证 (结构→语法→调用链)',
           success: issues.length === 0,
-          output: `Canvas: ${hasCanvas ? '✅' : '❌'} | Script: ${hasScript ? '✅' : '❌'} | 游戏循环: ${hasGameLoop ? '✅' : '❌'}\n` +
-            (issues.length > 0 ? '问题:\n' + issues.join('\n') : '结构验证通过'),
+          output: [
+            'Canvas: ' + (hasCanvas ? '✅' : '❌'),
+            'Script: ' + (hasScript ? '✅' : '❌'),
+            '渲染循环: ' + (hasGameLoop ? '✅' : '❌'),
+            ...layerResults,
+            issues.length > 0 ? '\n' + issues.join('\n') : '✅ 全部验证通过',
+          ].join(' | '),
         };
-        evidence.summary += `[HTML] ${htmlFiles.length} 文件 | ${issues.length} 个问题\n`;
+        evidence.summary += '[HTML] ' + htmlFiles.length + ' 文件 | ' + issues.length + ' 个问题\n';
       }
       break;
     }
