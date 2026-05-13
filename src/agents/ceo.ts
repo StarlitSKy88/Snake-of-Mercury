@@ -13,6 +13,8 @@ import { AgentMemory } from '../core/memory.js';
 import { plan } from './planner.js';
 import { generate } from './generator.js';
 import { evaluate } from './evaluator.js';
+import { deploy } from './devops.js';
+import { optimizeMarketing } from './marketing.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 
 // ============ 类型 ============
@@ -23,6 +25,7 @@ export interface Project {
   id: string;
   name: string;
   status: ProjectStatus;
+  projectDir: string;
   dag: TaskDAG;
   protocol: ProtocolBus;
   gate: Gate;
@@ -46,6 +49,7 @@ export class CEO {
     const project: Project = {
       id, name,
       status: 'created',
+      projectDir: dir,
       dag: new TaskDAG(dir),
       protocol: new ProtocolBus(dir),
       gate: new Gate(new ProtocolBus(dir)),
@@ -64,7 +68,8 @@ export class CEO {
     // Phase 1: 需求 → Task DAG
     project.status = 'planning';
     console.log('\n📋 Phase 1: 需求分析 + 任务规划');
-    project.dag = await plan(requirement, project.dag['tasksDir'].replace('/.tasks', ''), this.engine);
+    const newDag = await plan(requirement, project.projectDir, this.engine);
+    project.dag = newDag;
     
     const tasks = project.dag.list();
     console.log(`\n任务 DAG (${tasks.length} 个任务):`);
@@ -83,27 +88,26 @@ export class CEO {
         highImpact.map(t => `- Task #${t.id}: ${t.subject} (P${t.impactLevel})`).join('\n')
       );
       console.log(`⏸️  等待用户审批: approve ${req.id}`);
-      
-      // 在实际系统中，这里会等待。现在我们继续。
+      // 在实际系统中，这里会等待用户审批。目前继续执行。
     }
 
-    // Phase 2: 逐个执行 ready 任务
+    // Phase 2: 逐个执行 ready 任务（Ralph Loop: Generator ⇄ Evaluator）
     project.status = 'building';
-    console.log('\n🔨 Phase 2: 执行任务');
+    console.log('\n🔨 Phase 2: 执行任务 (Ralph Loop: 评估不通过→反馈→重试, 最大3轮)');
 
     let completedTasks = 0;
-    const maxTasks = tasks.length * 3; // 允许重试
+    const maxTasks = tasks.length * 3;
 
     for (let iter = 0; iter < maxTasks; iter++) {
       const ready = project.dag.getReady();
       if (ready.length === 0) {
         const blocked = project.dag.getBlocked();
-        if (blocked.length === 0) break; // 全部完成
+        if (blocked.length === 0) break;
         console.log(`  等待依赖: ${blocked.map(t => `#${t.id}`).join(', ')}`);
         continue;
       }
 
-      const task = ready[0]; // 取第一个 ready 任务
+      const task = ready[0];
 
       // Gate: 检查影响级别
       const gateCheck = await project.gate.check(
@@ -114,21 +118,56 @@ export class CEO {
         continue;
       }
 
-      // Generator → Evaluator
-      const genResult = await generate(task, project.dag['tasksDir'].replace('/.tasks', ''), project.dag, project.memory, this.engine);
+      // Ralph Loop: Generator ⇄ Evaluator, 最大 3 轮
+      const MAX_ROUNDS = 3;
+      let approved = false;
 
-      if (genResult.success) {
-        const evalReport = await evaluate(task, genResult.output, genResult.evidence, project.dag, project.memory, this.engine);
+      for (let round = 1; round <= MAX_ROUNDS; round++) {
+        if (round > 1) console.log(`  🔄 重试第 ${round}/${MAX_ROUNDS} 轮`);
+
+        const genResult = await generate(
+          task, project.projectDir, project.dag, project.memory, this.engine
+        );
+
+        if (!genResult.success) {
+          console.log(`  ⚠️  Generator 失败 (第${round}轮)`);
+          continue;
+        }
+
+        const evalReport = await evaluate(
+          task, genResult.output, genResult.evidence, project.dag, project.memory, this.engine
+        );
+
         if (evalReport.verdict === 'APPROVED') {
           completedTasks++;
           console.log(`  ✅ Task #${task.id} 完成 (${completedTasks}/${tasks.length})`);
+          approved = true;
+          break;
+        }
+
+        // REJECTED: 反馈注入，下一轮 Generator 可读取
+        if (round < MAX_ROUNDS) {
+          const fb = evalReport.issues.slice(0, 3).join('; ');
+          console.log(`  ❌ 第${round}轮未通过: ${fb}`);
+          const feedbackText = '\n\n## Evaluator 反馈(第' + round + '轮)\n' +
+            evalReport.issues.map((s: string, i: number) => (i + 1) + '. ' + s).join('\n');
+          project.dag.update(task.id, {
+            description: task.description + feedbackText,
+          });
         } else {
           project.dag.update(task.id, { status: 'failed' });
-          console.log(`  ❌ Task #${task.id} 评估未通过`);
+          console.log(`  ❌ Task #${task.id} ${MAX_ROUNDS}轮后未通过`);
+          project.memory.put({
+            namespace: 'global',
+            type: 'anti_pattern',
+            content: 'Task #' + task.id + ' "' + task.subject + '" failed after ' +
+              MAX_ROUNDS + ' rounds: ' + evalReport.issues.slice(0, 3).join('; '),
+            score: 0.9,
+          });
         }
-      } else {
-        project.dag.update(task.id, { status: 'failed' });
       }
+
+      if (!approved) break;
     }
 
     console.log(`\n${'='.repeat(50)}`);

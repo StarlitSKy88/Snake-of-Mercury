@@ -5,7 +5,7 @@
  */
 
 import { CEO } from './agents/ceo.js';
-import type { AgentEngine } from '../src/utils/agent-executor.js';
+import type { AgentEngine } from './utils/agent-executor.js';
 
 async function main() {
   const args = process.argv.slice(2);

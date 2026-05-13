@@ -135,11 +135,23 @@ export async function executeCode(output: string, projectDir: string): Promise<E
 
 export function formatEvidenceForEvaluator(evidence: ExecutionEvidence): string {
   let text = '\n\n---\n## ⚡ 实际执行证据\n\n';
-  text += `文件: ${evidence.filesExtracted.length} 个\n`;
-  if (evidence.test) text += `测试: ${evidence.test.success ? '✅' : '❌'}\n${evidence.test.output.slice(0, 500)}\n`;
-  if (evidence.typeCheck) text += `类型检查: ${evidence.typeCheck.success ? '✅' : '❌'}\n`;
-  if (evidence.build) text += `${evidence.build.command}: ${evidence.build.output}\n`;
-  text += `\n汇总: ${evidence.summary}\n`;
+  text += '### 生成文件\n';
+  for (const f of evidence.filesExtracted) {
+    text += '- ' + f.filepath + ' (' + f.language + ')\n';
+  }
+  text += '\n### 验证结果\n';
+  if (evidence.test) {
+    text += '测试: ' + (evidence.test.success ? '✅ 通过' : '❌ 失败') + '\n';
+    text += '```\n' + evidence.test.output.slice(0, 500) + '\n```\n';
+  }
+  if (evidence.typeCheck) {
+    text += '类型检查: ' + (evidence.typeCheck.success ? '✅ 通过' : '❌ 失败') + '\n';
+  }
+  if (evidence.build) {
+    text += evidence.build.command + ': ' + (evidence.build.success ? '✅ 通过' : '❌ 失败') + '\n';
+    text += '```\n' + evidence.build.output + '\n```\n';
+  }
+  text += '\n### 汇总\n' + evidence.summary + '\n';
   return text;
 }
 

@@ -46,6 +46,11 @@ export class TaskDAG {
     this.nextId = this._findMaxId() + 1;
   }
 
+  /** 返回项目根目录 */
+  get projectDir(): string {
+    return this.tasksDir.replace(/\/.tasks$/, '');
+  }
+
   // ===== CRUD =====
 
   /** 创建任务 */
