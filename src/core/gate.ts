@@ -34,7 +34,7 @@ export function classifyImpact(taskSubject: string, taskDescription: string): Ga
   const text = (taskSubject + ' ' + taskDescription).toLowerCase();
 
   // P0: 部署、定价、删除功能、认证变更
-  if (/deploy|部署|上线|publish|发布|price|定价|delete.*feature|删除.*功能|auth|认证|payment|支付/.test(text)) {
+  if (/deploy|部署|上线|publish|发布|price|定价|delete.*(?:existing|已有).*feature|删除.*已有功能|移除.*功能|砍掉.*功能|auth|认证|payment|支付/.test(text)) {
     return { level: ImpactLevel.P0_CRITICAL, needsApproval: true, notifyUser: true, description: '关键操作：部署/定价/权限变更' };
   }
 

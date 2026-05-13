@@ -100,8 +100,9 @@ export async function evaluate(
 ## 验收标准
 ${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-## Generator 输出（仅关键部分）
-${generatorOutput.slice(0, 4000)}
+## Generator 输出
+(如果末尾有截断标记不代表代码不完整，请查看 CodeExecutor 证据中的实际文件)
+${generatorOutput.slice(0, 8000)}
 
 ${evidence}
 

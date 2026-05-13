@@ -87,7 +87,11 @@ ${THREE_RED_LINES}
 ${RATIONALIZATIONS}
 ${RED_FLAGS}
 
-## 最终输出格式（Spec 之后，严格 JSON）
+## 最终输出格式（无论前面写了多少分析，必须在此输出 JSON）
+**重要**: 不要在输出 Assumptions 后等待用户确认。直接基于你的假设继续输出完整 JSON。
+如果用户不同意假设，他们会在下一轮告诉你。先输出 JSON 让流水线继续。
+
+
 {
   "spec": { "objective": "...", "commands": {...}, ... },
   "tasks": [

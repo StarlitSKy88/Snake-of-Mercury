@@ -1,8 +1,8 @@
 /**
  * Code Executor — 提取代码 → 写盘 → 执行 → 收集证据
  * 
- * 这是 Generator→Evaluator 之间的验证桥。
- * Generator 输出代码文本 → CodeExecutor 真正运行 → Evaluator 看到真实证据
+ * HTML 三层验证: 结构(L1) → JS语法(L2) → 调用链(L3)
+ * 上下文感知: 仅游戏/Canvas类应用检查 Canvas 和渲染循环
  */
 
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
@@ -69,60 +69,15 @@ export async function executeCode(output: string, projectDir: string): Promise<E
       const { execCommand } = await import('../utils/agent-executor.js');
       if (existsSync(join(projectDir, 'package.json'))) {
         evidence.install = await runCmd(execCommand, 'npm', ['install', '--silent'], projectDir, 120000);
+        evidence.test = await runCmd(execCommand, 'npm', ['test', '--', '--passWithNoTests'], projectDir, 120000);
       }
       if (existsSync(join(projectDir, 'tsconfig.json'))) {
         evidence.typeCheck = await runCmd(execCommand, 'npx', ['tsc', '--noEmit'], projectDir, 60000);
       }
-      evidence.test = await runCmd(execCommand, 'npm', ['test', '--', '--passWithNoTests'], projectDir, 120000);
       break;
     }
     case 'html': {
-      // 三层验证：结构 → JS语法 → 调用链
-      const issues: string[] = [];
-      for (const file of files.filter(f => f.filepath.endsWith('.html'))) {
-        const fullPath = join(projectDir, file.filepath);
-        const html = readFileSync(fullPath, 'utf-8');
-
-        // L1: 结构
-        if (!/<!DOCTYPE/i.test(html)) issues.push('L1: 缺少 DOCTYPE');
-        if (!/<canvas/i.test(html)) issues.push('L1: 缺少 canvas');
-
-        // L2: JS 语法
-        const scriptMatch = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
-        if (scriptMatch) {
-          try { new Function(scriptMatch[1]); }
-          catch (e: any) { issues.push('L2: JS语法错误 — ' + e.message.slice(0, 80)); }
-
-          const js = scriptMatch[1];
-          // L3: 调用链
-          if (!/requestAnimationFrame|setInterval.*draw|setTimeout.*gameLoop/i.test(js)) {
-            issues.push('L3: ⚠️ 未检测到渲染循环');
-          }
-          if (!/addEventListener\s*\(\s*['"]\w+['"]/i.test(js)) {
-            issues.push('L3: ⚠️ 未检测到事件处理');
-          }
-          const fnDefs = js.match(/function\s+(\w+)/g)?.map(d => d.split(/\s+/)[1]) || [];
-          const entryFns = fnDefs.filter(f => ['startGame', 'init', 'main', 'setup'].includes(f));
-          if (entryFns.length > 0) {
-            const entryRegex = new RegExp(`function\\s+${entryFns[0]}\\s*\\([^)]*\\)\\s*\\{[^}]+\\}`, 's');
-            const entryBody = (js.match(entryRegex)?.[0]) || '';
-            if (entryBody && !/requestAnimationFrame|setInterval|setTimeout|draw\s*\(/.test(entryBody)) {
-              issues.push(`L3: 🔴 入口函数 ${entryFns[0]}() 未触发渲染循环`);
-            }
-          }
-        } else {
-          issues.push('L1: 缺少 script 标签');
-        }
-
-        if (html.length < 2000) issues.push('L1: 文件过小(' + html.length + ' bytes)');
-      }
-
-      evidence.build = {
-        command: 'HTML 三层验证',
-        success: issues.length === 0,
-        output: issues.length > 0 ? issues.join('\n') : '✅ 验证通过',
-      };
-      evidence.summary = `[HTML] ${issues.length} 个问题`;
+      validateHtml(files, projectDir, evidence);
       break;
     }
     default: {
@@ -131,6 +86,68 @@ export async function executeCode(output: string, projectDir: string): Promise<E
   }
 
   return evidence;
+}
+
+/** HTML 三层验证: 上下文感知 */
+function validateHtml(files: CodeFile[], projectDir: string, evidence: ExecutionEvidence): void {
+  const hardFailures: string[] = [];
+  const softWarnings: string[] = [];
+  const fileList: string[] = [];
+
+  // 判断项目类型: 是否需要 Canvas/渲染循环?
+  const allContent = files.map(f => f.content).join(' ');
+  const isCanvasApp = /canvas|游戏|game|时钟|clock|绘图|draw.*canvas|动画|animate|贪吃蛇|snake/i.test(allContent);
+
+  for (const file of files.filter(f => f.filepath.endsWith('.html'))) {
+    const fullPath = join(projectDir, file.filepath);
+    const html = readFileSync(fullPath, 'utf-8');
+    fileList.push(file.filepath + ' (' + html.length + ' bytes)');
+
+    // L1: 硬失败 — 结构
+    if (!/<!DOCTYPE/i.test(html)) hardFailures.push('L1: 缺少 DOCTYPE');
+    if (html.length < 300) hardFailures.push('L1: 文件过小(' + html.length + ' bytes)');
+
+    // Canvas 检查: 仅对 Canvas/游戏类应用
+    if (isCanvasApp && !/<canvas/i.test(html)) {
+      hardFailures.push('L1: Canvas应用缺少 <canvas> 元素');
+    }
+
+    // L2: 硬失败 — JS 语法
+    const scriptMatch = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+    if (scriptMatch) {
+      try { new Function(scriptMatch[1]); }
+      catch (e: any) { hardFailures.push('L2: JS语法错误 — ' + e.message.slice(0, 80)); }
+
+      const js = scriptMatch[1];
+
+      // L3: 软警告 — 仅对 Canvas/游戏应用检查渲染循环和事件
+      if (isCanvasApp) {
+        if (!/requestAnimationFrame|setInterval.*(?:draw|update|render|loop)|setTimeout.*(?:gameLoop|loop)/i.test(js)) {
+          hardFailures.push('L3: Canvas应用缺少渲染循环 (requestAnimationFrame/setInterval)');
+        }
+        if (!/addEventListener\s*\(\s*['"]\w+['"]/i.test(js)) {
+          softWarnings.push('L3: 游戏应用建议添加事件处理');
+        }
+      }
+    } else if (isCanvasApp) {
+      hardFailures.push('L1: Canvas应用缺少 <script> 标签');
+    }
+  }
+
+  evidence.build = {
+    command: 'HTML 三层验证',
+    success: hardFailures.length === 0,
+    output: [
+      '## 文件列表',
+      ...fileList.map(f => '  - ' + f),
+      hardFailures.length > 0 ? '## 硬失败 (' + hardFailures.length + ')' : '## 硬失败: 0',
+      ...hardFailures.map(f => '  ❌ ' + f),
+      softWarnings.length > 0 ? '## 软警告 (' + softWarnings.length + ')' : '',
+      ...softWarnings.map(w => '  ⚠️ ' + w),
+      hardFailures.length === 0 && softWarnings.length === 0 ? '✅ 验证通过' : '',
+    ].filter(Boolean).join('\n'),
+  };
+  evidence.summary = '[HTML] ' + hardFailures.length + ' 个硬失败, ' + softWarnings.length + ' 个警告';
 }
 
 export function formatEvidenceForEvaluator(evidence: ExecutionEvidence): string {

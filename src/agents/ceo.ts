@@ -114,6 +114,15 @@ export class CEO {
         task.subject, task.description, 'generator'
       );
       if (gateCheck.blocked) {
+        // 检查是否已有相同任务的待审批请求
+        const existingReqs = project.protocol.listPending('user');
+        const alreadyRequested = existingReqs.some(r =>
+          r.subject.includes(task.subject) && r.status === 'pending'
+        );
+        if (alreadyRequested) {
+          console.log(`  ⏸️  Task #${task.id} 已有待审批请求，跳过`);
+          continue;
+        }
         console.log(`  ⏸️  Task #${task.id} 需要审批 (P${task.impactLevel})`);
         continue;
       }
