@@ -1,84 +1,102 @@
 /**
- * Phase 0 对话服务器 — 多轮对话模式
+ * Phase 0 对话服务器 — 多轮对话 + 历史记录
  * 
  * 启动: npm run discuss
  * 打开: http://localhost:3100
- * 
- * Agent 通过多轮对话与用户交互:
- *   提问 → 回答 → 挑战 → 整理 → 展示文档 → 用户确认 → 保存
  */
 
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { agentCall } from './core/agent-loop.js';
 import { THREE_RED_LINES } from './constraints/pua.js';
 import type { AgentEngine } from './utils/agent-executor.js';
 
 const PORT = 3100;
+const DISCUSS_DIR = join(process.cwd(), '.tasks', 'discussions');
 
-// ═══════════ 对话型 Agent ═══════════
-
-const CONVERSATION_PROMPT = `你是资深产品战略顾问。你在和一个创业者对话，帮他把模糊想法梳理成可执行的需求。
-
-## 你的对话风格
-- 友好但直接。敢质疑、敢挑战。不拍马屁。
-- 每次只问一个问题。不要一次抛出一堆问题。
-- 根据用户的回答深入追问。像剥洋葱一样。
-
-## 对话流程 (自然过渡，不强制)
-1. 先理解用户的想法（目标用户？解决什么问题？）
-2. 做市场调研（搜索 GitHub 同类项目，告诉用户竞品情况）
-3. 挑战假设（"你确定用户需要这个？有没有更简单的方案？"）
-4. 建议差异化方向（"市面上的 X 已经做了 Y，你的不同点在哪？"）
-5. 当你觉得信息够了 → 输出 **草案文档** 给用户审查
-
-## 输出文档的时机
-当你收集到足够信息后，在回复末尾输出:
-\`\`\`REQUIREMENT
-# 需求文档: [项目名]
-## 目标
-[一句话]
-## 用户画像
-[谁在用，什么场景]
-## 核心功能 (MVP)
-- [功能1]
-- [功能2]
-## 差异化
-[与竞品不同之处]
-## 技术方案建议
-[建议的技术栈]
-## 待确认
-- [需要用户确认的问题]
-\`\`\`
-然后问用户: "这是需求草案，确认后我会保存为 REQUIREMENT.md。有什么要调整的吗？"
-
-## 当用户确认后
-在回复末尾输出 READY_TO_SAVE，系统会自动保存文档。
-
-## 原则
-- 不要一次性输出，边聊边深入
-- 每次回复控制在 300 字以内（除了文档输出时）
-- 如果用户说"继续"/"确认"/"没问题" → 进入下一步
-- 如果用户说"不对"/"修改" → 调整文档
-
-${THREE_RED_LINES}`;
-
-// ═══════════ 会话管理 ═══════════
+// ═══════════ 持久化会话 ═══════════
 
 interface Turn {
   role: 'user' | 'agent';
   content: string;
+  time: string;
 }
 
-const sessions = new Map<string, Turn[]>();
-
-function getConversationHistory(sessionId: string): Turn[] {
-  if (!sessions.has(sessionId)) {
-    sessions.set(sessionId, []);
-  }
-  return sessions.get(sessionId)!;
+interface Session {
+  id: string;
+  title: string;       // 从第一句话提取
+  turns: Turn[];
+  createdAt: string;
+  updatedAt: string;
+  savedPath?: string;  // REQUIREMENT.md 路径
 }
+
+function loadSession(id: string): Session | null {
+  const path = join(DISCUSS_DIR, id + '.json');
+  if (!existsSync(path)) return null;
+  try { return JSON.parse(readFileSync(path, 'utf-8')); }
+  catch { return null; }
+}
+
+function saveSession(session: Session): void {
+  mkdirSync(DISCUSS_DIR, { recursive: true });
+  session.updatedAt = new Date().toISOString();
+  writeFileSync(join(DISCUSS_DIR, session.id + '.json'), JSON.stringify(session, null, 2));
+}
+
+function listSessions(): Session[] {
+  mkdirSync(DISCUSS_DIR, { recursive: true });
+  return readdirSync(DISCUSS_DIR)
+    .filter(f => f.endsWith('.json'))
+    .map(f => {
+      try { return JSON.parse(readFileSync(join(DISCUSS_DIR, f), 'utf-8')); }
+      catch { return null; }
+    })
+    .filter((s): s is Session => s !== null)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+// ═══════════ Agent Prompt ═══════════
+
+const CONVERSATION_PROMPT = `你是资深产品战略顾问。你在和一个创业者对话，帮他把模糊想法梳理成可执行的需求。
+
+## 你的对话风格
+- 友好但直接。敢质疑、敢挑战。
+- 每次只问一个问题。不要一次抛出一堆问题。
+- 根据用户的回答深入追问。像剥洋葱一样。
+
+## 对话流程 (自然过渡)
+1. 理解用户想法（目标用户？解决什么问题？）
+2. 做市场调研（搜索 GitHub 同类项目）
+3. 挑战假设（"有没有更简单的方案？"）
+4. 建议差异化方向
+5. 当你觉得信息够了 → 输出 **草案文档** 给用户审查
+
+## 输出文档的时机
+当信息足够后，回复末尾输出:
+\`\`\`REQUIREMENT
+# 需求文档: [项目名]
+## 目标
+[一句话]
+## 核心功能 (MVP)
+- [功能]
+## 差异化
+[与竞品不同]
+## 技术方案建议
+[建议]
+\`\`\`
+然后问: "确认后保存为 REQUIREMENT.md。要调整吗？"
+
+## 当用户确认
+末尾输出 READY_TO_SAVE，系统自动保存。
+
+## 原则
+- 每次回复 ≤ 300 字（文档输出时除外）
+- 用户说"继续"/"确认"/"没问题" → 推进
+- 用户说"不对"/"修改" → 调整
+
+${THREE_RED_LINES}`;
 
 // ═══════════ HTTP 服务器 ═══════════
 
@@ -100,13 +118,8 @@ function json(res: ServerResponse, data: any, status = 200) {
 
 const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
-    res.end();
-    return;
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.end(); return;
   }
 
   const url = req.url || '/';
@@ -124,70 +137,109 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // 对话 API (多轮)
+  // 历史列表
+  if (url === '/api/sessions' && req.method === 'GET') {
+    const sessions = listSessions().map(s => ({
+      id: s.id,
+      title: s.title,
+      turnCount: s.turns.length,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+      saved: !!s.savedPath,
+    }));
+    json(res, sessions);
+    return;
+  }
+
+  // 加载特定会话
+  if (url === '/api/sessions/load' && req.method === 'POST') {
+    const body = await parseBody(req);
+    const session = loadSession(body.sessionId);
+    if (session) {
+      json(res, { success: true, session });
+    } else {
+      json(res, { success: false, error: '会话不存在' }, 404);
+    }
+    return;
+  }
+
+  // 对话 API (多轮 + 持久化)
   if (url === '/api/discuss' && req.method === 'POST') {
     const body = await parseBody(req);
     const message = body.message || '';
-    const sessionId = body.sessionId || 'default';
+    const sessionId = body.sessionId || ('sess-' + Date.now());
     const engine = (process.env.HARNESS_ENGINE || 'minimax') as AgentEngine;
 
-    const history = getConversationHistory(sessionId);
-    history.push({ role: 'user', content: message });
+    let session = loadSession(sessionId);
+    if (!session) {
+      session = {
+        id: sessionId,
+        title: message.slice(0, 40),
+        turns: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
 
-    // 裁剪历史（保留最近 10 轮）
-    const recentHistory = history.slice(-10);
+    // 更新标题
+    if (session.turns.length === 0) {
+      session.title = message.slice(0, 40);
+    }
 
-    // 构建 prompt
-    const historyText = recentHistory
-      .map(t => (t.role === 'user' ? '👤 用户: ' : '🤖 Agent: ') + t.content)
+    session.turns.push({ role: 'user', content: message, time: new Date().toISOString() });
+
+    // 构建 prompt (最近 10 轮)
+    const recentTurns = session.turns.slice(-10);
+    const historyText = recentTurns
+      .map(t => (t.role === 'user' ? '👤: ' : '🤖: ') + t.content)
       .join('\n\n');
 
-    const prompt = `## 对话历史
-${historyText}
-
-请根据对话历史回复用户。如果信息足够，输出需求文档草案。
-如果用户已确认，末尾输出 READY_TO_SAVE。`;
+    const prompt = `## 对话历史\n${historyText}\n\n请回复用户。信息足够时输出需求文档草案。用户确认后末尾输出 READY_TO_SAVE。`;
 
     try {
       const reply = await agentCall(CONVERSATION_PROMPT, prompt, engine);
-      history.push({ role: 'agent', content: reply });
+      session.turns.push({ role: 'agent', content: reply, time: new Date().toISOString() });
 
-      // 检测 READY_TO_SAVE
       const readyToSave = reply.includes('READY_TO_SAVE');
-
-      // 提取并保存 REQUIREMENT.md
       let savedPath = '';
+
       if (readyToSave) {
         const docMatch = reply.match(/```REQUIREMENT\n([\s\S]*?)```/);
         if (docMatch) {
-          const docContent = docMatch[1];
           const tasksDir = join(process.cwd(), '.tasks');
           mkdirSync(tasksDir, { recursive: true });
-          const fullDoc = `# 需求文档\n\n> 生成时间: ${new Date().toISOString()}\n> 对话轮数: ${history.length}\n\n${docContent}`;
+          const fullDoc = `# 需求文档\n\n> 生成时间: ${new Date().toISOString()}\n> 对话轮数: ${session.turns.length}\n\n${docMatch[1]}`;
           writeFileSync(join(tasksDir, 'REQUIREMENT.md'), fullDoc, 'utf-8');
           savedPath = join(tasksDir, 'REQUIREMENT.md');
+          session.savedPath = savedPath;
         }
       }
+
+      saveSession(session);
 
       json(res, {
         success: true,
         reply,
         readyToSave,
         savedPath,
+        sessionId: session.id,
       });
-
     } catch (err: any) {
       json(res, { success: false, error: err?.message || String(err) }, 500);
     }
     return;
   }
 
-  // 重置会话
-  if (url === '/api/reset' && req.method === 'POST') {
+  // 删除会话
+  if (url === '/api/sessions/delete' && req.method === 'POST') {
     const body = await parseBody(req);
-    const sessionId = body.sessionId || 'default';
-    sessions.delete(sessionId);
-    json(res, { success: true });
+    const path = join(DISCUSS_DIR, body.sessionId + '.json');
+    if (existsSync(path)) {
+      unlinkSync(path);
+      json(res, { success: true });
+    } else {
+      json(res, { success: false, error: '不存在' }, 404);
+    }
     return;
   }
 
@@ -204,8 +256,7 @@ ${historyText}
 export function startDiscussServer() {
   server.listen(PORT, () => {
     console.log(`\n🧠 Phase 0 对话窗口: http://localhost:${PORT}`);
-    console.log('Agent 会通过多轮对话帮你梳理需求');
-    console.log('当你确认后, Agent 自动保存 REQUIREMENT.md');
+    console.log('对话自动保存在 .tasks/discussions/');
     console.log('按 Ctrl+C 退出\n');
   });
 }
