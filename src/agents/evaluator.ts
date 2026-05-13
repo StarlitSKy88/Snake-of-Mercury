@@ -1,14 +1,18 @@
 /**
  * Evaluator Agent — 只看证据，不看原始代码
  * 
- * v4: 上下文隔离。Evaluator 不接收 Generator 原始输出，
- *     只看 CodeExecutor 收集的结构化证据 + 验收标准。
+ * v5: 
+ *   - P0-3: 证据上下文隔离 — validateEvidence() 拒绝含原始代码的证据
+ *   - P0-4: 验收标准预检有 FAIL → 立即 REJECTED
+ *   - P0-1: 假成功检测集成
  */
 
 import { TaskDAG, type Task } from '../core/task-dag.js';
 import { agentCall } from '../core/agent-loop.js';
 import { THREE_RED_LINES, EVALUATOR_HARDCORE, RATIONALIZATIONS, RED_FLAGS } from '../constraints/pua.js';
 import { AgentMemory } from '../core/memory.js';
+import { isFalseSuccess } from '../core/done-sequence.js';
+import { validateEvidence, sanitizeEvidence } from '../core/evidence-guard.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 
 const EVALUATOR_PROMPT = `你是独立质量评估师。你只看到 CodeExecutor 的实际执行证据，看不到原始代码。
@@ -29,6 +33,7 @@ const EVALUATOR_PROMPT = `你是独立质量评估师。你只看到 CodeExecuto
 - 总分 >= 7.5
 - testCoverage = 0 → 自动 REJECTED
 - 验收标准有 FAIL → 自动 REJECTED
+- 证据含原始代码 → 自动 REJECTED (上下文污染)
 
 ## 评估方法
 1. 对每条验收标准: 在证据中找对应的 PASS/FAIL
@@ -63,8 +68,6 @@ export interface EvaluatorReport {
   criteriaCheck: Array<{ criterion: string; passed: boolean; evidence: string }>;
 }
 
-// ═══════════ v4: 只接收 evidence，不接收 generatorOutput ═══════════
-
 export async function evaluate(
   task: Task,
   evidence: string,
@@ -74,12 +77,38 @@ export async function evaluate(
 ): Promise<EvaluatorReport> {
   console.log(`\n🔍 [Evaluator] Task #${task.id}: ${task.subject}`);
 
+  // v5 P0-3: 证据上下文隔离检查
+  const evidenceCheck = validateEvidence(evidence);
+  if (!evidenceCheck.valid) {
+    console.log(`  🚫 证据上下文污染: ${evidenceCheck.reason}`);
+    const report = createRejectedReport([
+      `上下文隔离失败: ${evidenceCheck.reason}`,
+      evidenceCheck.hasRawCodeBlocks ? '证据含原始代码块 → Generator 输出未被过滤' : '',
+      !evidenceCheck.hasCodeExecutorSignature ? '缺失 CodeExecutor 签名 → Generator 可能跳过了执行' : '',
+    ].filter(Boolean));
+    dag.update(task.id, { status: 'failed', evidence });
+    memory.put({
+      namespace: String(task.id),
+      type: 'anti_pattern',
+      content: `Task #${task.id} REJECTED by context isolation: ${evidenceCheck.reason}`,
+      score: 1.0,
+    });
+    return report;
+  }
+
+  // v5 P0-3: 净化证据（剥离可能的代码残留）
+  const sanitized = sanitizeEvidence(evidence);
+  const effectiveEvidence = sanitized !== evidence ? sanitized : evidence;
+  if (sanitized !== evidence) {
+    console.log(`  🧹 证据已净化（剥离代码残留）`);
+  }
+
   // 0. Red Flags 快速检测
-  const redFlag = checkRedFlags(evidence, task);
+  const redFlag = checkRedFlags(effectiveEvidence, task);
   if (redFlag.found) {
     console.log(`  🚩 Red Flag: ${redFlag.reason}`);
-    const report = createDefaultReport('REJECTED', [redFlag.reason]);
-    dag.update(task.id, { status: 'failed', evidence });
+    const report = createRejectedReport([redFlag.reason]);
+    dag.update(task.id, { status: 'failed', evidence: effectiveEvidence });
     memory.put({
       namespace: String(task.id),
       type: 'anti_pattern',
@@ -89,21 +118,46 @@ export async function evaluate(
     return report;
   }
 
-  // 1. 先检查证据中验收标准的逐条状态（不等 LLM）
-  const criteriaPreCheck = preCheckCriteria(task, evidence);
-  if (criteriaPreCheck.hasFailures) {
-    console.log(`  🚩 验收标准预检: ${criteriaPreCheck.failCount} FAIL`);
+  // v5 P0-4: 验收标准预检
+  const criteriaCheck = checkCriteria(task, effectiveEvidence);
+  if (criteriaCheck.hasFailures) {
+    const issues = [
+      `验收标准预检: ${criteriaCheck.failCount}/${task.acceptanceCriteria.length} FAIL`,
+      ...criteriaCheck.failedCriteria.map(c => `  - ${c}`),
+    ];
+    console.log(`  🚩 验收标准预检 FAIL → 立即 REJECTED (跳过 LLM)`);
+    const report = createRejectedReport(issues);
+    report.criteriaCheck = criteriaCheck.details;
+    dag.update(task.id, { status: 'failed', evidence: effectiveEvidence });
+    memory.put({
+      namespace: String(task.id),
+      type: 'anti_pattern',
+      content: `Task #${task.id} REJECTED by criteria pre-check: ${criteriaCheck.failCount} FAIL`,
+      metadata: { taskId: task.id, failedCriteria: criteriaCheck.failedCriteria },
+      score: 0.95,
+    });
+    return report;
   }
 
-  // 2. LLM 评估（只传证据）
+  // 1. 假成功检测
+  const falseSuccess = isFalseSuccess(effectiveEvidence);
+  if (falseSuccess.found) {
+    console.log(`  ⚠️ 证据含假成功模式: "${falseSuccess.pattern}"`);
+    const report = createRejectedReport([`假成功: 证据含 "${falseSuccess.pattern}"，不可信`]);
+    dag.update(task.id, { status: 'failed', evidence: effectiveEvidence });
+    return report;
+  }
+
+  // 2. LLM 评估
+  console.log(`  ✅ 预检通过，进入 LLM 评估`);
   const prompt = `# Task #${task.id}: ${task.subject}
 
-## 验收标准
-${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+## 验收标准（预检全部通过）
+${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c} ✅`).join('\n')}
 
-${evidence}
+${effectiveEvidence}
 
-请逐条验收标准检查并五维评分。`;
+请五维评分。`;
 
   let output: string;
   try {
@@ -114,7 +168,7 @@ ${evidence}
       type: 'anti_pattern',
       content: `Evaluator unavailable for Task #${task.id}`,
     });
-    return createDefaultReport('REJECTED', ['Evaluator 不可用']);
+    return createRejectedReport(['Evaluator 不可用']);
   }
 
   // 3. 解析 JSON
@@ -124,28 +178,18 @@ ${evidence}
     const parsed = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(output);
     report = normalizeReport(parsed);
   } catch {
-    const approved = /APPROVED|通过/i.test(output) && !/REJECTED|失败/i.test(output);
-    report = createDefaultReport(
-      approved ? 'APPROVED' : 'REJECTED',
-      approved ? [] : ['Evaluator JSON 解析失败']
-    );
+    report = createRejectedReport(['Evaluator JSON 解析失败']);
   }
 
-  // 4. 兜底: testCoverage=0 但 APPROVED → 强制 REJECTED
+  // 4. 兜底
   if (report.verdict === 'APPROVED' && (report.dimensionScores.testCoverage || 0) === 0) {
     report.verdict = 'REJECTED';
     report.issues.push('Red Flag: 无测试但声称通过');
   }
 
-  // 5. 兜底: 验收标准预检有 FAIL 但 LLM 说 APPROVED → 强制 REJECTED
-  if (report.verdict === 'APPROVED' && criteriaPreCheck.hasFailures) {
-    report.verdict = 'REJECTED';
-    report.issues.push('预检: 验收标准有 FAIL，LLM 评估可能有误');
-  }
-
-  // 6. 更新 Task 状态
+  // 5. 更新状态
   if (report.verdict === 'APPROVED') {
-    dag.update(task.id, { status: 'completed', evidence });
+    dag.update(task.id, { status: 'completed', evidence: effectiveEvidence });
     console.log(`  ✅ APPROVED (${report.totalScore}/10)`);
     memory.put({
       namespace: String(task.id),
@@ -169,7 +213,7 @@ ${evidence}
   return report;
 }
 
-// ═══════════ 预检 ═══════════
+// ═══════════ Red Flags ═══════════
 
 function checkRedFlags(evidence: string, task: Task): { found: boolean; reason: string } {
   if (!evidence || evidence.length < 50) {
@@ -186,16 +230,53 @@ function checkRedFlags(evidence: string, task: Task): { found: boolean; reason: 
   return { found: false, reason: '' };
 }
 
-/** 验收标准预检：在证据中搜索 PASS/FAIL 状态 */
-function preCheckCriteria(task: Task, evidence: string): { hasFailures: boolean; failCount: number } {
-  let failCount = 0;
-  for (const criterion of task.acceptanceCriteria) {
-    const keyword = criterion.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '');
-    const pattern = new RegExp(keyword + '.*[❌FAIL]|FAIL.*' + keyword, 'i');
-    if (pattern.test(evidence)) failCount++;
-  }
-  return { hasFailures: failCount > 0, failCount };
+// ═══════════ 验收标准预检 ═══════════
+
+interface CriteriaCheckResult {
+  hasFailures: boolean;
+  failCount: number;
+  passCount: number;
+  failedCriteria: string[];
+  details: Array<{ criterion: string; passed: boolean; evidence: string }>;
 }
+
+function checkCriteria(task: Task, evidence: string): CriteriaCheckResult {
+  const details: Array<{ criterion: string; passed: boolean; evidence: string }> = [];
+  const failedCriteria: string[] = [];
+
+  for (const criterion of task.acceptanceCriteria) {
+    const keyword = criterion.slice(0, 30).replace(/[.*+?^${}()|[\]\\"'`]/g, '');
+    const passPattern = new RegExp(keyword + '.*?(PASS|✅|✓|通过)', 'i');
+    const failPattern = new RegExp(keyword + '.*?(FAIL|❌|✗|失败)', 'i');
+    
+    let passed = false;
+    let found = '';
+    
+    if (passPattern.test(evidence)) {
+      passed = true;
+      found = evidence.match(passPattern)?.[0] || 'PASS 证据已找到';
+    } else if (failPattern.test(evidence)) {
+      found = evidence.match(failPattern)?.[0] || 'FAIL 证据已找到';
+    } else if (new RegExp(keyword, 'i').test(evidence)) {
+      found = '关键词存在但状态不明确 → FAIL';
+    } else {
+      found = '证据中未找到对应验证 → FAIL';
+    }
+
+    details.push({ criterion: criterion.slice(0, 60), passed, evidence: found });
+    if (!passed) failedCriteria.push(criterion.slice(0, 60));
+  }
+
+  return {
+    hasFailures: failedCriteria.length > 0,
+    failCount: failedCriteria.length,
+    passCount: details.length - failedCriteria.length,
+    failedCriteria,
+    details,
+  };
+}
+
+// ═══════════ 工具函数 ═══════════
 
 function normalizeReport(raw: Record<string, any>): EvaluatorReport {
   const scores = raw.dimensionScores || {};
@@ -214,10 +295,10 @@ function normalizeReport(raw: Record<string, any>): EvaluatorReport {
   };
 }
 
-function createDefaultReport(verdict: 'APPROVED' | 'REJECTED', issues: string[]): EvaluatorReport {
+function createRejectedReport(issues: string[]): EvaluatorReport {
   return {
-    verdict,
-    totalScore: verdict === 'APPROVED' ? 8.0 : 4.0,
+    verdict: 'REJECTED',
+    totalScore: 4.0,
     dimensionScores: { productDepth: 5, userExperience: 5, codeQuality: 5, testCoverage: 0, security: 5 },
     issues,
     criteriaCheck: [],

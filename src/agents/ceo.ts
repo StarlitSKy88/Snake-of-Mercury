@@ -1,9 +1,9 @@
 /**
  * CEO Agent — 用户代理 + 项目生命周期管理
  * 
- * 与旧架构的关键区别:
- *   旧: CEO 是纯编排器，不调用 LLM
- *   新: CEO 通过 ProtocolRequest 与用户沟通，通过 TaskDAG 管理项目
+ * v5:
+ *   - P0-5: Generator→CodeExecutor→Evaluator 强制网关
+ *   - 增加证据合法性预检查
  */
 
 import { TaskDAG } from '../core/task-dag.js';
@@ -15,6 +15,7 @@ import { generate } from './generator.js';
 import { evaluate } from './evaluator.js';
 import { deploy } from './devops.js';
 import { optimizeMarketing } from './marketing.js';
+import { hasCodeExecutorSignature } from '../core/evidence-guard.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 
 // ============ 类型 ============
@@ -43,7 +44,6 @@ export class CEO {
     this.engine = engine;
   }
 
-  /** 创建新项目 */
   createProject(name: string, dir: string): Project {
     const id = `proj-${Date.now()}`;
     const project: Project = {
@@ -56,14 +56,12 @@ export class CEO {
       memory: new AgentMemory(dir + '/.memory'),
       createdAt: new Date().toISOString(),
     };
-    // 让 gate 使用正确的 protocol 实例
     (project as any).gate = new Gate(project.protocol);
     this.projects.set(id, project);
     console.log(`\n👑 [CEO] 项目创建: ${name} (${id})`);
     return project;
   }
 
-  /** 运行完整流水线 */
   async run(project: Project, requirement: string): Promise<void> {
     // Phase 1: 需求 → Task DAG
     project.status = 'planning';
@@ -77,23 +75,19 @@ export class CEO {
       console.log(`  ${t.id}. [${t.blockedBy.join(',') || '-'}] → ${t.subject} (impact:${t.impactLevel})`);
     }
 
-    // 检查是否需要审批
+    // 高影响任务审批
     const highImpact = tasks.filter(t => t.impactLevel >= 2);
     if (highImpact.length > 0) {
-      const req = project.protocol.request(
-        'plan_approval',
-        'planner',
-        'user',
+      project.protocol.request(
+        'plan_approval', 'planner', 'user',
         `发现 ${highImpact.length} 个高影响任务`,
         highImpact.map(t => `- Task #${t.id}: ${t.subject} (P${t.impactLevel})`).join('\n')
       );
-      console.log(`⏸️  等待用户审批: approve ${req.id}`);
-      // 在实际系统中，这里会等待用户审批。目前继续执行。
     }
 
-    // Phase 2: 逐个执行 ready 任务（Ralph Loop: Generator ⇄ Evaluator）
+    // Phase 2: Ralph Loop
     project.status = 'building';
-    console.log('\n🔨 Phase 2: 执行任务 (Ralph Loop: 评估不通过→反馈→重试, 最大3轮)');
+    console.log('\n🔨 Phase 2: 执行任务 (Ralph Loop)');
 
     let completedTasks = 0;
     const maxTasks = tasks.length * 3;
@@ -109,40 +103,48 @@ export class CEO {
 
       const task = ready[0];
 
-      // Gate: 检查影响级别
-      const gateCheck = await project.gate.check(
-        task.subject, task.description, 'generator'
-      );
+      // Gate 检查
+      const gateCheck = await project.gate.check(task.subject, task.description, 'generator');
       if (gateCheck.blocked) {
-        // 检查是否已有相同任务的待审批请求
         const existingReqs = project.protocol.listPending('user');
-        const alreadyRequested = existingReqs.some(r =>
-          r.subject.includes(task.subject) && r.status === 'pending'
-        );
-        if (alreadyRequested) {
-          console.log(`  ⏸️  Task #${task.id} 已有待审批请求，跳过`);
+        if (existingReqs.some(r => r.subject.includes(task.subject) && r.status === 'pending')) {
           continue;
         }
-        console.log(`  ⏸️  Task #${task.id} 需要审批 (P${task.impactLevel})`);
+        console.log(`  ⏸️  Task #${task.id} 需要审批`);
         continue;
       }
 
-      // Ralph Loop: Generator ⇄ Evaluator, 最大 3 轮
+      // v5 P0-5: Ralph Loop — Generator→CodeExecutor→Evaluator 强制网关
       const MAX_ROUNDS = 3;
       let approved = false;
 
       for (let round = 1; round <= MAX_ROUNDS; round++) {
         if (round > 1) console.log(`  🔄 重试第 ${round}/${MAX_ROUNDS} 轮`);
 
+        // Step 1: Generator (内部执行 CodeExecutor)
         const genResult = await generate(
           task, project.projectDir, project.dag, project.memory, this.engine
         );
 
         if (!genResult.success) {
           console.log(`  ⚠️  Generator 失败 (第${round}轮)`);
+          // v5 P0-5: Generator 失败 → 不进入 Evaluator
           continue;
         }
 
+        // v5 P0-5: 强制网关检查 — 证据必须有 CodeExecutor 签名
+        if (!hasCodeExecutorSignature(genResult.evidence)) {
+          console.log(`  🚫 [CEO] 证据无 CodeExecutor 签名 — 可能跳过执行，拒绝`);
+          // 要求 Generator 重试
+          const feedbackText = '\n\n## CEO 网关检查(第' + round + '轮)\n' +
+            '证据中缺失 CodeExecutor 输出特征（文件列表/验证结果/测试通过标志）。请重新生成并通过 CodeExecutor 验证。';
+          project.dag.update(task.id, {
+            description: task.description + feedbackText,
+          });
+          continue;
+        }
+
+        // Step 2: Evaluator（只收到证据）
         const evalReport = await evaluate(
           task, genResult.evidence, project.dag, project.memory, this.engine
         );
@@ -154,7 +156,7 @@ export class CEO {
           break;
         }
 
-        // REJECTED: 反馈注入，下一轮 Generator 可读取
+        // REJECTED: 反馈注入
         if (round < MAX_ROUNDS) {
           const fb = evalReport.issues.slice(0, 3).join('; ');
           console.log(`  ❌ 第${round}轮未通过: ${fb}`);
@@ -184,8 +186,6 @@ export class CEO {
     console.log(project.dag.summary());
   }
 
-
-  /** v4: 保存项目状态到 HANDOFF.md */
   saveState(project: Project): string {
     const { writeFileSync } = require('fs');
     const { join } = require('path');
@@ -224,7 +224,6 @@ export class CEO {
     return path;
   }
 
-  /** v4: 从 HANDOFF.md 恢复项目 */
   resume(project: Project): boolean {
     const { existsSync, readFileSync } = require('fs');
     const { join } = require('path');
@@ -242,26 +241,21 @@ export class CEO {
     return true;
   }
 
-  /** 获取用户待审批列表 */
   getUserInbox(projectId: string): ProtocolRequest[] {
     const project = this.projects.get(projectId);
     return project ? project.protocol.getUserInbox() : [];
   }
 
-  /** v4: 异步运行（不阻塞，支持多项目并行） */
   runAsync(project: Project, requirement: string): Promise<void> {
     return this.run(project, requirement).catch(err => {
       console.error(`[${project.name}] 异常:`, err?.message || err);
     });
   }
 
-  /** v4: 列出所有项目 */
   listProjects(): Project[] {
     return [...this.projects.values()];
   }
 
-
-  /** 用户审批 */
   approve(projectId: string, requestId: string, approved: boolean, reason?: string): boolean {
     const project = this.projects.get(projectId);
     if (!project) return false;
