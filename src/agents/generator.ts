@@ -76,8 +76,8 @@ export async function generate(
 
   // 2. 搜索记忆
   const pastFailures = memory.search(
-    `Task ${task.subject} failed generator`,
-    'global',
+    `Task ${task.subject}`,
+    String(task.id),
     3
   );
   let memoryContext = '';
@@ -87,13 +87,19 @@ export async function generate(
     console.log(`  📝 记忆: ${pastFailures.length} 条相关记录`);
   }
 
-  // 3. TDD 循环 (最大 5 次，因为 TDD 减少试错)
-  const MAX_ATTEMPTS = 5;
+  // 3. TDD 循环 (最大 3 次 + Feedback Loop 先行)
+  const MAX_ATTEMPTS = 3;
   let finalOutput = '';
   let evidence = '';
+  let feedbackLoopBuilt = false;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const tddStep = attempt === 1 ? 'RED' : (attempt <= 3 ? 'GREEN/REFACTOR' : '修复');
+    const tddStep = attempt === 1 ? 'RED' : (attempt === 2 ? 'GREEN/REFACTOR' : '修复');
+
+    // Feedback Loop: 失败后重新构建验证方法
+    const feedbackSection = (attempt > 1 && !feedbackLoopBuilt)
+      ? `\n## ⚡ Feedback Loop (必填)\n上次失败原因: ${evidence.slice(0, 200)}\n请先回答: 我用什么可验证的信号来证明问题已解决？\n格式: \`验证方法: [具体命令/检查] → 预期结果: [可观测信号]\``
+      : '';
 
     const prompt = `# Task #${task.id}: ${task.subject}
 ${task.description}
@@ -101,6 +107,7 @@ ${task.description}
 ## 验收标准（逐一实现）
 ${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 ${memoryContext}
+${feedbackSection}
 
 ## TDD 当前阶段: ${tddStep}
 ${attempt === 1 ? '先写测试 (RED)，确认测试失败。' : ''}
@@ -119,6 +126,19 @@ ${attempt > 1 ? `\n## 🔧 上次问题（第${attempt - 1}次）\n${evidence}` 
     if (!result.success) {
       evidence = `Generator 执行失败（第${attempt}次）: ${result.error}`;
       continue;
+    }
+
+    // 检测 Feedback Loop 是否构建
+    if (!feedbackLoopBuilt && attempt > 1) {
+      const hasFeedbackLoop = /验证方法[:：].*→.*预期结果|feedback.?loop/i.test(finalOutput);
+      if (hasFeedbackLoop) {
+        feedbackLoopBuilt = true;
+        console.log('  ✅ Feedback Loop 构建完成');
+      } else if (attempt === MAX_ATTEMPTS) {
+        console.log('  🚩 Feedback Loop 未构建 → REJECTED');
+        evidence += '\n\n## 🚩 Feedback Loop 缺失\nGenerator 未构建验证方法。';
+        continue;
+      }
     }
 
     // 4. CodeExecutor: 提取代码 → 写盘 → 运行 → 收集证据

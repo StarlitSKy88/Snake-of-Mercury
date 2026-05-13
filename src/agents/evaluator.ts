@@ -1,11 +1,8 @@
 /**
- * Evaluator Agent — 五维评分 + Red Flags 检测
+ * Evaluator Agent — 只看证据，不看原始代码
  * 
- * Google Agent Skills 式审查:
- *   1. 逐条验收标准 PASS/FAIL + 证据
- *   2. 五维度评分 (产品深度/用户体验/代码质量/安全性/测试覆盖)
- *   3. Red Flags 自动 REJECTED
- *   4. Rationalizations 检测 ("看起来没问题" = REJECTED)
+ * v4: 上下文隔离。Evaluator 不接收 Generator 原始输出，
+ *     只看 CodeExecutor 收集的结构化证据 + 验收标准。
  */
 
 import { TaskDAG, type Task } from '../core/task-dag.js';
@@ -14,36 +11,35 @@ import { THREE_RED_LINES, EVALUATOR_HARDCORE, RATIONALIZATIONS, RED_FLAGS } from
 import { AgentMemory } from '../core/memory.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 
-// ============ System Prompt ============
+const EVALUATOR_PROMPT = `你是独立质量评估师。你只看到 CodeExecutor 的实际执行证据，看不到原始代码。
 
-const EVALUATOR_PROMPT = `你是独立质量评估师。你有最终裁决权。
+## 你的信息来源（仅此两份）
+1. **验收标准** — Task 定义中的 acceptanceCriteria
+2. **CodeExecutor 证据** — 包含：文件列表、验证结果、验收标准逐条状态、模块深度评分
 
-## 评估五维度（1-10分）
-1. productDepth (25%): 功能是否完整？验收标准全满足？
-2. userExperience (20%): 交互是否流畅？
-3. codeQuality (20%): 代码质量、可读性？
-4. testCoverage (20%): 是否有测试？测试是否有意义？
-5. security (15%): 输入验证、无硬编码密钥？
+## 评估五维度
+1. productDepth (25%): 验收标准全满足？
+2. userExperience (20%): 证据显示交互完整？
+3. codeQuality (20%): 模块深度合理？文件数量恰当？
+4. testCoverage (20%): 有测试证据？
+5. security (15%): 无明显安全漏洞？
 
 ## 硬阈值
-- 每维度 >= 6.0（放宽至6.0，给修复空间）
+- 每维度 >= 6.0
 - 总分 >= 7.5
-- testCoverage = 0（无测试）→ 自动 REJECTED
+- testCoverage = 0 → 自动 REJECTED
+- 验收标准有 FAIL → 自动 REJECTED
 
 ## 评估方法
-1. 逐条验收标准检查，每条标注 PASS/FAIL + 证据
-2. 检查 CodeExecutor 的实际执行证据（不是 Generator 的声称）
-3. 对 "看起来没问题"、"应该正常" 等表述 → REJECTED
+1. 对每条验收标准: 在证据中找对应的 PASS/FAIL
+2. 找不到对应证据 → 标注 "证据缺失" → FAIL
+3. 五维度评分基于证据，不基于猜测
 4. 最终裁决
 
-## Red Flags (检测到任一 → 立即 REJECTED)
-- 代码无对应测试 → REJECTED
-- Bug 修复无复现测试 → REJECTED
-- "看起来没问题" 表述 → REJECTED (证据驱动，不是感觉驱动)
-- "应该正常" → REJECTED
-- 手动测试代替自动化测试 → REJECTED
-- 测试本身不验证行为（如只检查 true=true）→ REJECTED
-- "稍后补测试" → REJECTED
+## Red Flags (检测到 → 立即 REJECTED)
+- 验收标准有 FAIL 或 "证据缺失" → REJECTED
+- 无 CodeExecutor 证据 → REJECTED
+- "看起来没问题" 表述 → REJECTED
 
 ${THREE_RED_LINES}
 ${EVALUATOR_HARDCORE}
@@ -55,11 +51,9 @@ ${RED_FLAGS}
   "verdict": "APPROVED" | "REJECTED",
   "totalScore": 8.5,
   "dimensionScores": {"productDepth":8,"userExperience":9,"codeQuality":8,"testCoverage":7,"security":8},
-  "issues": ["具体问题 — 必须可操作"],
+  "issues": ["具体可操作问题"],
   "criteriaCheck": [{"criterion":"xxx","passed":true,"evidence":"CodeExecutor显示..."}]
 }`;
-
-// ============ 核心 ============
 
 export interface EvaluatorReport {
   verdict: 'APPROVED' | 'REJECTED';
@@ -69,9 +63,10 @@ export interface EvaluatorReport {
   criteriaCheck: Array<{ criterion: string; passed: boolean; evidence: string }>;
 }
 
+// ═══════════ v4: 只接收 evidence，不接收 generatorOutput ═══════════
+
 export async function evaluate(
   task: Task,
-  generatorOutput: string,
   evidence: string,
   dag: TaskDAG,
   memory: AgentMemory,
@@ -79,30 +74,32 @@ export async function evaluate(
 ): Promise<EvaluatorReport> {
   console.log(`\n🔍 [Evaluator] Task #${task.id}: ${task.subject}`);
 
-  // 0. Red Flags 快速检测（不等 LLM）
-  const redFlagResult = checkRedFlags(generatorOutput, evidence, task);
-  if (redFlagResult.found) {
-    console.log(`  🚩 Red Flag: ${redFlagResult.reason}`);
-    const report = createDefaultReport('REJECTED', [redFlagResult.reason]);
+  // 0. Red Flags 快速检测
+  const redFlag = checkRedFlags(evidence, task);
+  if (redFlag.found) {
+    console.log(`  🚩 Red Flag: ${redFlag.reason}`);
+    const report = createDefaultReport('REJECTED', [redFlag.reason]);
     dag.update(task.id, { status: 'failed', evidence });
     memory.put({
-      namespace: 'global',
+      namespace: String(task.id),
       type: 'anti_pattern',
-      content: `Task #${task.id} "${task.subject}" REJECTED by Red Flag: ${redFlagResult.reason}`,
+      content: `Task #${task.id} REJECTED by Red Flag: ${redFlag.reason}`,
       score: 1.0,
     });
     return report;
   }
 
-  // 1. LLM 评估
+  // 1. 先检查证据中验收标准的逐条状态（不等 LLM）
+  const criteriaPreCheck = preCheckCriteria(task, evidence);
+  if (criteriaPreCheck.hasFailures) {
+    console.log(`  🚩 验收标准预检: ${criteriaPreCheck.failCount} FAIL`);
+  }
+
+  // 2. LLM 评估（只传证据）
   const prompt = `# Task #${task.id}: ${task.subject}
 
 ## 验收标准
 ${task.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}
-
-## Generator 输出
-(如果末尾有截断标记不代表代码不完整，请查看 CodeExecutor 证据中的实际文件)
-${generatorOutput.slice(0, 8000)}
 
 ${evidence}
 
@@ -113,14 +110,14 @@ ${evidence}
     output = await agentCall(EVALUATOR_PROMPT, prompt, engine);
   } catch {
     memory.put({
-      namespace: 'global',
+      namespace: String(task.id),
       type: 'anti_pattern',
-      content: `Evaluator unavailable for Task #${task.id} "${task.subject}"`,
+      content: `Evaluator unavailable for Task #${task.id}`,
     });
     return createDefaultReport('REJECTED', ['Evaluator 不可用']);
   }
 
-  // 2. 解析 JSON
+  // 3. 解析 JSON
   let report: EvaluatorReport;
   try {
     const jsonMatch = output.match(/```json\s*([\s\S]*?)```/) || output.match(/(\{[\s\S]*\})/);
@@ -134,20 +131,26 @@ ${evidence}
     );
   }
 
-  // 3. 兜底检测: 如果 testCoverage=0 但说 APPROVED → 强制 REJECTED
+  // 4. 兜底: testCoverage=0 但 APPROVED → 强制 REJECTED
   if (report.verdict === 'APPROVED' && (report.dimensionScores.testCoverage || 0) === 0) {
     report.verdict = 'REJECTED';
     report.issues.push('Red Flag: 无测试但声称通过');
   }
 
-  // 4. 更新 Task 状态
+  // 5. 兜底: 验收标准预检有 FAIL 但 LLM 说 APPROVED → 强制 REJECTED
+  if (report.verdict === 'APPROVED' && criteriaPreCheck.hasFailures) {
+    report.verdict = 'REJECTED';
+    report.issues.push('预检: 验收标准有 FAIL，LLM 评估可能有误');
+  }
+
+  // 6. 更新 Task 状态
   if (report.verdict === 'APPROVED') {
     dag.update(task.id, { status: 'completed', evidence });
-    console.log(`  ✅ APPROVED (${report.totalScore}/10) | 维度: ${Object.entries(report.dimensionScores).map(([k,v]) => `${k}=${v}`).join(', ')}`);
+    console.log(`  ✅ APPROVED (${report.totalScore}/10)`);
     memory.put({
-      namespace: 'global',
+      namespace: String(task.id),
       type: 'pattern',
-      content: `Task #${task.id} "${task.subject}" PASSED (${report.totalScore}/10). ${report.issues.length} issues.`,
+      content: `Task #${task.id} PASSED (${report.totalScore}/10). ${report.issues.length} issues.`,
       metadata: { taskId: task.id, scores: report.dimensionScores },
       score: 0.5,
     });
@@ -155,9 +158,9 @@ ${evidence}
     console.log(`  ❌ REJECTED (${report.totalScore}/10)`);
     console.log(`  问题: ${report.issues.slice(0, 3).join('; ')}`);
     memory.put({
-      namespace: 'global',
+      namespace: String(task.id),
       type: 'anti_pattern',
-      content: `Task #${task.id} "${task.subject}" REJECTED. Issues: ${report.issues.slice(0, 3).join('; ')}`,
+      content: `Task #${task.id} REJECTED. Issues: ${report.issues.slice(0, 3).join('; ')}`,
       metadata: { taskId: task.id, scores: report.dimensionScores },
       score: 0.9,
     });
@@ -166,42 +169,33 @@ ${evidence}
   return report;
 }
 
-// ============ Red Flags 快速检测 ============
+// ═══════════ 预检 ═══════════
 
-interface RedFlagResult {
-  found: boolean;
-  reason: string;
-}
-
-function checkRedFlags(generatorOutput: string, evidence: string, task: Task): RedFlagResult {
-  // 1. "看起来没问题" / "应该正常"
-  if (/看起来.*没问题|应该.*没问题|应该.*正常|看上去.*正确|probably.*fine|seems.*ok/i.test(generatorOutput)) {
-    return { found: true, reason: 'Red Flag: "看起来没问题" 表述 — 需要证据，不是感觉' };
+function checkRedFlags(evidence: string, task: Task): { found: boolean; reason: string } {
+  if (!evidence || evidence.length < 50) {
+    return { found: true, reason: 'Red Flag: 无 CodeExecutor 证据' };
   }
-
-  // 2. 无测试证据
-  const hasTestEvidence = /测试.*通过|test.*pass|✅.*test|test.*success/i.test(evidence);
-  const hasTestFile = /\.test\.(ts|js)/i.test(generatorOutput);
-  const isPureHtml = task.subject.toLowerCase().includes('html') && !task.acceptanceCriteria.some(c => c.includes('测试'));
-
-  if (!hasTestEvidence && !hasTestFile && !isPureHtml) {
-    return { found: true, reason: 'Red Flag: 无测试证据 — testCoverage=0，自动 REJECTED' };
+  if (/看起来.*没问题|应该.*正常|probably.*fine/i.test(evidence)) {
+    return { found: true, reason: 'Red Flag: "看起来没问题" 表述' };
   }
-
-  // 3. "稍后补测试" / "先实现再测试"
-  if (/稍后.*测试|后面.*测试|等.*再.*测试|先.*实现.*再.*测试|TBD.*test/i.test(generatorOutput)) {
-    return { found: true, reason: 'Red Flag: "稍后补测试" — 测试必须现在写' };
+  const hasTest = /test.*[✅✓]|测试.*通过|✅.*test/i.test(evidence);
+  const hasBuild = /build.*[✅✓]|验证.*通过|✅.*验证/i.test(evidence);
+  if (!hasTest && !hasBuild) {
+    return { found: true, reason: 'Red Flag: 无测试/构建通过证据' };
   }
-
-  // 4. 手动测试代替自动化
-  if (/手动.*测试|manual.*test|浏览器.*打开.*看/i.test(generatorOutput) && !hasTestEvidence) {
-    return { found: true, reason: 'Red Flag: 手动测试代替自动化测试' };
-  }
-
   return { found: false, reason: '' };
 }
 
-// ============ 辅助 ============
+/** 验收标准预检：在证据中搜索 PASS/FAIL 状态 */
+function preCheckCriteria(task: Task, evidence: string): { hasFailures: boolean; failCount: number } {
+  let failCount = 0;
+  for (const criterion of task.acceptanceCriteria) {
+    const keyword = criterion.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '');
+    const pattern = new RegExp(keyword + '.*[❌FAIL]|FAIL.*' + keyword, 'i');
+    if (pattern.test(evidence)) failCount++;
+  }
+  return { hasFailures: failCount > 0, failCount };
+}
 
 function normalizeReport(raw: Record<string, any>): EvaluatorReport {
   const scores = raw.dimensionScores || {};

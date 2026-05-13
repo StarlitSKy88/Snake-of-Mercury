@@ -144,7 +144,7 @@ export class CEO {
         }
 
         const evalReport = await evaluate(
-          task, genResult.output, genResult.evidence, project.dag, project.memory, this.engine
+          task, genResult.evidence, project.dag, project.memory, this.engine
         );
 
         if (evalReport.verdict === 'APPROVED') {
@@ -184,11 +184,82 @@ export class CEO {
     console.log(project.dag.summary());
   }
 
+
+  /** v4: 保存项目状态到 HANDOFF.md */
+  saveState(project: Project): string {
+    const { writeFileSync } = require('fs');
+    const { join } = require('path');
+    const dag = project.dag;
+    const tasks = dag.list();
+    const completed = tasks.filter(t => t.status === 'completed');
+    const inProgress = tasks.filter(t => t.status === 'in_progress');
+    const pending = tasks.filter(t => t.status === 'pending');
+    const failed = tasks.filter(t => t.status === 'failed');
+    
+    const handoff = [
+      '# Handoff: ' + project.name,
+      '> 生成时间: ' + new Date().toISOString(),
+      '',
+      '## 项目状态: ' + project.status,
+      '',
+      '## 完成 (' + completed.length + '/' + tasks.length + ')',
+      ...completed.map(t => '- [x] #' + t.id + ' ' + t.subject),
+      '',
+      '## 进行中',
+      ...inProgress.map(t => '- [~] #' + t.id + ' ' + t.subject),
+      '',
+      '## 待办',
+      ...pending.map(t => '- [ ] #' + t.id + ' ' + t.subject),
+      '',
+      '## 失败',
+      ...failed.map(t => '- [!] #' + t.id + ' ' + t.subject),
+      '',
+      '## 审批中',
+      ...project.protocol.listPending('user').map(r => '- [' + r.id + '] ' + r.subject),
+    ].join('\n');
+    
+    const path = join(project.projectDir, '.tasks', 'HANDOFF.md');
+    writeFileSync(path, handoff);
+    console.log('📝 Handoff 已保存: ' + path);
+    return path;
+  }
+
+  /** v4: 从 HANDOFF.md 恢复项目 */
+  resume(project: Project): boolean {
+    const { existsSync, readFileSync } = require('fs');
+    const { join } = require('path');
+    const path = join(project.projectDir, '.tasks', 'HANDOFF.md');
+    if (!existsSync(path)) {
+      console.log('未找到 HANDOFF.md');
+      return false;
+    }
+    const content = readFileSync(path, 'utf-8');
+    const statusMatch = content.match(/项目状态: (\w+)/);
+    if (statusMatch) {
+      project.status = statusMatch[1] as ProjectStatus;
+    }
+    console.log('📝 已从 HANDOFF 恢复项目: ' + project.name);
+    return true;
+  }
+
   /** 获取用户待审批列表 */
   getUserInbox(projectId: string): ProtocolRequest[] {
     const project = this.projects.get(projectId);
     return project ? project.protocol.getUserInbox() : [];
   }
+
+  /** v4: 异步运行（不阻塞，支持多项目并行） */
+  runAsync(project: Project, requirement: string): Promise<void> {
+    return this.run(project, requirement).catch(err => {
+      console.error(`[${project.name}] 异常:`, err?.message || err);
+    });
+  }
+
+  /** v4: 列出所有项目 */
+  listProjects(): Project[] {
+    return [...this.projects.values()];
+  }
+
 
   /** 用户审批 */
   approve(projectId: string, requestId: string, approved: boolean, reason?: string): boolean {

@@ -23,6 +23,8 @@ export interface ExecutionEvidence {
   test?: { success: boolean; output: string };
   build?: { command: string; success: boolean; output: string };
   summary: string;
+  criteriaCheck?: Array<{ criterion: string; passed: boolean; detail: string }>;
+  moduleDepthScore?: { functions: number; totalLines: number; rating: '深' | '中' | '浅' };
 }
 
 // ============ 提取 ============
@@ -61,6 +63,9 @@ export async function executeCode(output: string, projectDir: string): Promise<E
 
   writeCodeFiles(files, projectDir);
   console.log(`  ⚡ [CodeExecutor] ${files.length} 文件写入`);
+
+  // v4: 计算模块深度
+  evidence.moduleDepthScore = calcModuleDepth(files);
 
   const projectType = detectType(files);
 
@@ -156,6 +161,22 @@ export function formatEvidenceForEvaluator(evidence: ExecutionEvidence): string 
   for (const f of evidence.filesExtracted) {
     text += '- ' + f.filepath + ' (' + f.language + ')\n';
   }
+
+  // 验收标准逐条状态 (v4)
+  if (evidence.criteriaCheck && evidence.criteriaCheck.length > 0) {
+    text += '\n### 验收标准逐条检查\n';
+    for (const c of evidence.criteriaCheck) {
+      text += (c.passed ? '✅ ' : '❌ ') + c.criterion + ' — ' + c.detail + '\n';
+    }
+  }
+
+  // 模块深度评分 (v4)
+  if (evidence.moduleDepthScore) {
+    const m = evidence.moduleDepthScore;
+    text += '\n### 模块深度\n';
+    text += m.functions + ' 函数 / ' + m.totalLines + ' 行 → ' + m.rating + '\n';
+  }
+
   text += '\n### 验证结果\n';
   if (evidence.test) {
     text += '测试: ' + (evidence.test.success ? '✅ 通过' : '❌ 失败') + '\n';
@@ -190,4 +211,41 @@ async function runCmd(
   } catch (err) {
     return { success: false, output: String(err) };
   }
+}
+
+/** Caveman 精简格式: Agent 间通信用，省 75% token */
+export function formatCompactEvidence(evidence: ExecutionEvidence): string {
+  const parts: string[] = [];
+  parts.push('[files]:' + evidence.filesExtracted.length);
+  if (evidence.build) parts.push('[build]:' + (evidence.build.success ? 'OK' : 'FAIL'));
+  if (evidence.test) parts.push('[test]:' + (evidence.test.success ? 'OK' : 'FAIL'));
+  if (evidence.typeCheck) parts.push('[tsc]:' + (evidence.typeCheck.success ? 'OK' : 'FAIL'));
+  if (evidence.criteriaCheck) {
+    const passed = evidence.criteriaCheck.filter(c => c.passed).length;
+    parts.push('[criteria]:' + passed + '/' + evidence.criteriaCheck.length);
+  }
+  if (evidence.moduleDepthScore) {
+    parts.push('[depth]:' + evidence.moduleDepthScore.rating);
+  }
+  parts.push('[sum]:' + evidence.summary);
+  return parts.join(' ');
+}
+
+/** v4: 计算模块深度评分 */
+function calcModuleDepth(files: CodeFile[]): { functions: number; totalLines: number; rating: '深' | '中' | '浅' } {
+  let totalFunctions = 0;
+  let totalLines = 0;
+  for (const f of files) {
+    const lines = f.content.split('\n').length;
+    totalLines += lines;
+    const fnMatches = f.content.match(/function\s+\w+|const\s+\w+\s*=\s*(?:async\s*)?\(|class\s+\w+/g);
+    totalFunctions += fnMatches ? fnMatches.length : 0;
+  }
+  const ratio = totalLines > 0 ? totalFunctions / totalLines : 0;
+  // > 0.05 = 深 (很多小函数), 0.02-0.05 = 中, < 0.02 = 浅
+  let rating: '深' | '中' | '浅';
+  if (ratio > 0.05) rating = '深';
+  else if (ratio > 0.02) rating = '中';
+  else rating = '浅';
+  return { functions: totalFunctions, totalLines, rating };
 }

@@ -24,6 +24,8 @@ export interface AgentLoopConfig {
   systemPrompt: string;
   maxIterations?: number;
   timeout?: number;
+  heartbeatTimeout?: number;  // v4: 无进展超时(ms)，默认 180000
+  taskLabel?: string;          // v4: 任务标签，用于心跳日志
 }
 
 export interface AgentLoopResult {
@@ -31,6 +33,7 @@ export interface AgentLoopResult {
   output: string;
   iterations: number;
   error?: string;
+  heartbeats?: number;  // v4: 心跳次数
 }
 
 // ============ 核心 ============
@@ -49,8 +52,21 @@ export async function agentLoop(
   let output = '';
   let iterations = 0;
 
+  const heartbeatMs = config.heartbeatTimeout || 180000;
+  let lastProgressTime = Date.now();
+  let heartbeatCount = 0;
+
   for (let i = 0; i < maxIterations; i++) {
     iterations++;
+
+    // v4: 心跳检测
+    const elapsed = Date.now() - lastProgressTime;
+    if (elapsed > heartbeatMs) {
+      heartbeatCount++;
+      const label = config.taskLabel || 'unknown';
+      console.log(`💓 [心跳 #${heartbeatCount}] ${label}: ${Math.round(elapsed / 1000)}s 无进展`);
+      lastProgressTime = Date.now(); // 重置，避免刷屏
+    }
 
     const result = await executeAgent(
       config.systemPrompt,
@@ -62,19 +78,20 @@ export async function agentLoop(
     );
 
     if (!result.success) {
-      return { success: false, output, iterations, error: result.error };
+      return { success: false, output, iterations, error: result.error, heartbeats: heartbeatCount };
     }
 
     output = result.output;
+    lastProgressTime = Date.now(); // v4: 有进展，重置心跳
 
     // 如果没有更多工作要做，退出
     // Generator 和 Evaluator 输出中包含 DONE 标记
     if (output.includes('TASK_COMPLETE') || output.includes('任务完成')) {
-      return { success: true, output, iterations };
+      return { success: true, output, iterations, heartbeats: heartbeatCount };
     }
   }
 
-  return { success: true, output, iterations };
+  return { success: true, output, iterations, heartbeats: heartbeatCount };
 }
 
 /**
