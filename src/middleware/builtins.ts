@@ -17,6 +17,7 @@ import type { Middleware, PipelineContext } from './pipeline.js';
 import type { AgentDefinition, TaskResult } from '../swarm/swarm-coordinator.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 import { executeAgent } from '../utils/agent-executor.js';
+import { executeCode, formatEvidenceForEvaluator } from './code-executor.js';
 import { THREE_RED_LINES } from '../pua-constraints.js';
 
 // 动态导入
@@ -283,9 +284,24 @@ export function createGeneratorEvaluatorMiddleware(
             continue;
           }
 
-          // Evaluator: 逐个 criterion 验证
+          // CodeExecutor: 提取代码 → 写盘 → 执行 → 收集真实证据
+          console.log(`  ⚡ [CodeExecutor] 执行代码...`);
+          let evidence = '';
+          try {
+            const execEvidence = await executeCode(genResult.output, ctx.projectDir);
+            evidence = formatEvidenceForEvaluator(execEvidence);
+            console.log(`  ⚡ [CodeExecutor] ${execEvidence.summary}`);
+          } catch (err) {
+            console.warn(`  ⚡ [CodeExecutor] 执行失败: ${err}`);
+            evidence = '\n\n---\n## ⚡ 实际执行证据\nCodeExecutor 执行失败，以下为 Generator 自述。\n';
+          }
+
+          // 将真实验证证据附加到 Generator 输出
+          const outputWithEvidence = genResult.output + evidence;
+
+          // Evaluator: 逐个 criterion 验证（现在有真实证据可以核实！）
           const report = await evaluator({
-            sprint, spec, generatorOutput: genResult.output,
+            sprint, spec, generatorOutput: outputWithEvidence,
             projectDir: ctx.projectDir,
           }, ctx.engine);
 
@@ -301,7 +317,7 @@ export function createGeneratorEvaluatorMiddleware(
           if (allPassed && report.verdict === 'APPROVED') {
             sprintPassed = true;
             sprintIssues.delete(sprint.sprintNumber);
-            sprintResults.push({ success: true, output: genResult.output });
+            sprintResults.push({ success: true, output: outputWithEvidence });
             console.log(`  ✅ Sprint ${sprint.sprintNumber} 通过 (${sprintIterations} 次迭代)`);
             updateProgressSprint(ctx.projectDir, sprint.sprintNumber, { status: "passed", iterations: sprintIterations });
             // Clean state: 验证项目可交付 (Anthropic Article 1.5)

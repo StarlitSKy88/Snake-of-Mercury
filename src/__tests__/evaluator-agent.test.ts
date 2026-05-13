@@ -183,7 +183,7 @@ describe('EvaluatorAgent', () => {
     }, 'minimax');
 
     expect(report.verdict).toBe('REJECTED');
-    expect(report.issues).toContain('评估器无法解析输出，默认 REJECTED');
+    expect(report.issues).toContain('评估器输出无法解析，默认 REJECTED');
   });
 
   it('Agent执行失败应返回默认REJECTED', async () => {
