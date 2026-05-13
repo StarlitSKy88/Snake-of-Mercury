@@ -104,25 +104,39 @@ export async function executePhase0Debate(
   const dirs = createDebateDirectories(baseDir, iterationId);
   console.log('[Phase 0] 辩论目录:', dirs.base);
 
-  // 2. 保存问题定义
+  // 2. 市场调研：搜索 GitHub 同类项目
+  console.log('[Phase 0] 🔍 市场调研（GitHub 搜索）...');
+  try {
+    const mr = await searchGitHub(problemDefinition.problemStatement || '');
+    if (mr) {
+      console.log('[Phase 0] 📊 市场调研完成，注入上下文');
+      problemDefinition.contextSnapshot = (problemDefinition.contextSnapshot || '') +
+        '\n\n## 🔍 市场调研（GitHub 同类项目搜索）\n' + mr +
+        '\n\n⚠️ 请基于以上市场调研来评估创新性。如果我们的方案与这些项目没有本质区别，请明确指出。';
+    }
+  } catch (e) {
+    console.log('[Phase 0] ⚠️ 市场调研跳过（gh CLI 不可用）');
+  }
+
+  // 3. 保存问题定义
   const problemFile = join(dirs.base, 'problem-definition.json');
   writeFileSync(problemFile, JSON.stringify(problemDefinition, null, 2), 'utf-8');
-  console.log('[Phase 0] 问题定义已保存');
+  console.log('[Phase 0] 问题定义已保存（含市场调研）');
 
   try {
-    // 3. Round 1: 5 个 Agent 并行独立洞察
+    // 4. Round 1: 5 个 Agent 并行独立洞察
     console.log('[Phase 0] Round 1: 5 个 Agent 并行洞察...');
     const round1Outputs = await executeRound1(dirs, problemDefinition);
 
-    // 4. Round 2: 互相质疑
+    // 5. Round 2: 互相质疑
     console.log('[Phase 0] Round 2: 互相质疑...');
     const round2Challenges = await executeRound2(dirs, round1Outputs);
 
-    // 5. Round 3: 回应质疑
+    // 6. Round 3: 回应质疑
     console.log('[Phase 0] Round 3: 回应质疑...');
     const round3Responses = await executeRound3(dirs, round1Outputs, round2Challenges);
 
-    // 6. Planner 整合收敛
+    // 7. Planner 整合收敛
     console.log('[Phase 0] Planner 整合收敛...');
     const debateResult = await executeSynthesis(dirs, round1Outputs, round2Challenges, round3Responses);
 
@@ -398,23 +412,36 @@ ${baseContext}
 `,
 
     'phase0-innovation-officer': `
-你是**颠覆式创新官**，你的任务是提出**颠覆式创新方向**。
+你是**颠覆式创新官**，你的任务是提出**颠覆式创新方向**。你有权力否决不够创新的方案。
 
 ${baseContext}
 
 ## 你的任务
 1. 提出至少 2 个**彻底颠覆**现有方案的创新方向
 2. 每个创新方向必须有"wow moment"
-3. 格式：
+3. 用创新审查清单逐项审查每个方向
+
+## 创新审查清单（每个方向必须逐项标注通过/不通过）
+- [ ] 是否只是换了皮肤/主题？（是 → 不通过）
+- [ ] 核心机制是否和已有产品不同？（否 → 不通过）
+- [ ] 用户能否在3分钟内说出"这就像XX"？（能 → 不通过）
+- [ ] 是否有用户在现有产品中得不到的体验？（否 → 不通过）
+
+## 格式：
    ### 创新方向 1: [标题]
    - 核心思路: [描述]
    - Wow 点: [什么让人眼前一亮]
    - 跨界借鉴: [从哪个领域借鉴]
+   - 创新审查:
+     - [x] 非换皮 ✓
+     - [x] 核心机制不同于 [列举具体竞品] ✓
+     - [x] 用户无法在3分钟内找到同类 ✓
+     - [x] 独特体验: [描述]
 
    ### 创新方向 2: [标题]
-   - 核心思路: [描述]
-   - Wow 点: [什么让人眼前一亮]
-   - 跨界借鉴: [从哪个领域借鉴]
+   ...
+
+## ⚠️ 如果两个方向都没通过审查，你有权力说"这个需求本身达不到创新标准，建议打回重新定义核心玩法"
 `,
 
     'phase0-business-operator': `
@@ -666,30 +693,46 @@ function getDebateAgentSystemPrompt(agentType: string): string {
   const baseConstraints = THREE_RED_LINES;
 
   const rolePrompts: Record<string, string> = {
-    'phase0-insight-challenger': `你是**需求重构洞察者**——你的核心能力是看穿表面需求，挖掘真正的底层问题。
+    'phase0-insight-challenger': `你是**需求重构洞察者**——你的核心能力是看穿表面需求，挖掘真正的底层问题。你有权对任何"不够独特"的方案提出根本性质疑。
 
 ## 你的信条
 1. 用户说的不一定是真正需要的——你的任务是找出真正的 JTBD
 2. 每个质疑必须指向具体的逻辑漏洞或未验证的假设
 3. 好的质疑比好的方案更有价值
+4. 必须追问：市面上的产品为什么没有满足用户？我们的方案凭什么不同？
+
+## 市场感知
+你会收到一份市场调研结果。请仔细阅读，并：
+- 指出现有产品的共同模式（如果我们的方案也在重复这些模式，必须指出）
+- 找出竞品没有覆盖的空白地带
+- 质疑我们是否只是在"换皮肤"
 
 ## 禁止
 - 禁止附和原始需求（你不是来点赞的）
 - 禁止说"这个需求很好"而不给质疑
 - 禁止模糊质疑（必须指出具体哪里有问题）
+- 禁止忽略市场调研结果
 
 ${baseConstraints}`,
 
-    'phase0-innovation-officer': `你是**颠覆式创新官**——你的核心能力是从其他领域借鉴思路，提出用户想不到的方案。
+    'phase0-innovation-officer': `你是**颠覆式创新官**——你的核心能力是从其他领域借鉴思路，提出用户想不到的方案。你拥有对平庸方案的绝对否决权。
 
 ## 你的信条
 1. 好的创新来自跨界——从游戏/金融/社交/教育等领域借鉴
 2. 每个创新方向必须说清楚"wow moment"在哪里
 3. 创新不等于天马行空——必须说明借鉴的源头
+4. 你有权力说"这个方案不够创新，和市面上的X、Y没有本质区别"
+
+## 创新审查清单（每个方向必须通过）
+- [ ] 如果只换了一个主题/皮肤，不算创新
+- [ ] 如果核心机制和已有产品相同，不算创新
+- [ ] 如果用户玩了3分钟就能说出"这就像XX游戏"，不算创新
+- [ ] 必须有至少一个用户在现有产品中得不到的体验
 
 ## 禁止
 - 禁止提"用AI优化"这种没有具体方案的创新
 - 禁止不提跨界来源的凭空创新
+- 禁止接受"核心机制不可颠覆"——如果只能做已有产品，这个项目就不该做
 
 ${baseConstraints}`,
 
@@ -763,6 +806,56 @@ async function execClaudeSDKWithTimeout(
 
   return result.output;
 }
+/**
+ * 搜索 GitHub 同类项目（使用 gh CLI）
+ */
+async function searchGitHub(requirement: string): Promise<string> {
+  const words = requirement.slice(0, 100)
+    .replace(/[^a-zA-Z0-9\u4e00-\u9fff\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1)
+    .slice(0, 5);
+  const query = words.join(' ') || 'game';
+
+  try {
+    const { execCommand: ec } = await import('./utils/agent-executor.js');
+    const result = await ec('gh', [
+      'search', 'repos', query,
+      '--sort', 'stars', '--limit', '5',
+      '--json', 'fullName,stargazersCount,description'
+    ], { timeout: 15000 });
+
+    if (result.success && result.stdout) {
+      const data = JSON.parse(result.stdout);
+      return data.map((r: any) =>
+        '- ' + r.fullName + ' ⭐' + r.stargazersCount + ': ' +
+        (r.description || '(no description)').slice(0, 100)
+      ).join('\n');
+    }
+  } catch { /* gh not available */ }
+
+  // Fallback: try curl to GitHub API
+  try {
+    const { execCommand: ec } = await import('./utils/agent-executor.js');
+    const result = await ec('curl', [
+      '-s', '-H', 'Accept: application/vnd.github.v3+json',
+      'https://api.github.com/search/repositories?q=' +
+      encodeURIComponent(query) + '&sort=stars&per_page=5'
+    ], { timeout: 10000 });
+
+    if (result.success && result.stdout) {
+      const data = JSON.parse(result.stdout);
+      return (data.items || []).map((r: any) =>
+        '- ' + r.full_name + ' ⭐' + r.stargazers_count + ': ' +
+        (r.description || '(no description)').slice(0, 100)
+      ).join('\n');
+    }
+  } catch { /* curl not available */ }
+
+  return '';
+}
+
+
 
 /**
  * 执行 Claude Code CLI 命令（带超时）- 仅作为备用

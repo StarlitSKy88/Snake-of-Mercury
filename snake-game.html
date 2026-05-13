@@ -126,10 +126,10 @@ canvas { display: block; width: 100%; height: auto; image-rendering: auto; }
     <button id="btn-reset" onclick="resetGame()">↺ 重置</button>
   </div>
   <div id="mobile-controls">
-    <button id="btn-up" ontouchstart="setDir(0,-1);event.preventDefault()">▲</button>
-    <button id="btn-left" ontouchstart="setDir(-1,0);event.preventDefault()">◀</button>
-    <button id="btn-right" ontouchstart="setDir(1,0);event.preventDefault()">▶</button>
-    <button id="btn-down" ontouchstart="setDir(0,1);event.preventDefault()">▼</button>
+    <button id="btn-up">▲</button>
+    <button id="btn-left">◀</button>
+    <button id="btn-right">▶</button>
+    <button id="btn-down">▼</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -671,6 +671,9 @@ function startGame() {
   
   if (tickTimer) clearTimeout(tickTimer);
   tickTimer = setTimeout(gameTick, tickSpeed);
+  
+  // 启动渲染循环
+  draw();
 }
 
 function togglePause() {
@@ -680,6 +683,7 @@ function togglePause() {
   if (!paused) {
     if (tickTimer) clearTimeout(tickTimer);
     tickTimer = setTimeout(gameTick, tickSpeed);
+    draw(); // 恢复渲染
   }
 }
 
@@ -806,6 +810,15 @@ canvas.addEventListener('touchend', e => {
 
 // ============ 初始化 ============
 window.addEventListener('resize', () => { resize(); if (!gameRunning) draw(); });
+
+// 移动端方向按钮事件
+['mousedown','touchstart'].forEach(eventType => {
+  document.getElementById('btn-up').addEventListener(eventType, (e) => { setDir(0,-1); e.preventDefault(); });
+  document.getElementById('btn-down').addEventListener(eventType, (e) => { setDir(0,1); e.preventDefault(); });
+  document.getElementById('btn-left').addEventListener(eventType, (e) => { setDir(-1,0); e.preventDefault(); });
+  document.getElementById('btn-right').addEventListener(eventType, (e) => { setDir(1,0); e.preventDefault(); });
+});
+
 resize();
 draw();
 updateHUD();

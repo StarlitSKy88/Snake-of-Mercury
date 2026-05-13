@@ -216,6 +216,9 @@ export function createGeneratorEvaluatorMiddleware(
   // 跟踪每个 Sprint 的上次错误，用于针对性修复
   const sprintIssues = new Map<number, string>();
 
+  let apiCallCount = 0;
+  const costLog: string[] = [];
+
   return {
     name: 'GeneratorEvaluator', phase: 'phase2',
     agentDef: {
@@ -271,12 +274,23 @@ export function createGeneratorEvaluatorMiddleware(
           if (pressureNote) console.log(pressureNote);
           const prevIssues = sprintIssues.get(sprint.sprintNumber);
           console.log(`[Sprint ${sprint.sprintNumber}] ${sprintIterations > 1 ? `🔧 修复 #${sprintIterations}` : '💻 实现中...'}` +
-            (prevIssues ? ` 上次: ${prevIssues.slice(0, 60)}` : ''));
+            (prevIssues ? ` 上次: ${prevIssues.slice(0, 200)}` : ''));
+
+          // Sprint Contract 谈判（首次或重谈）
+          const { negotiateSprintContract } = await import("../generator-agent.js");
+          const sprintContract = sprintIterations === 1
+            ? await negotiateSprintContract(sprint, spec, ctx.engine)
+            : (ctx as any)._sprintContract || sprint.objectives.join('; ');
+          (ctx as any)._sprintContract = sprintContract;
 
           const genResult = await gen({
             sprint, spec, projectDir: ctx.projectDir,
             previousIssues: prevIssues ? [prevIssues] : [],
+            sprintContract,
           }, ctx.engine);
+
+          apiCallCount++;
+          costLog.push(`[API#${apiCallCount}] Generator Sprint${sprint.sprintNumber} iter${sprintIterations}`);
 
           if (!genResult.success) {
             consecutiveNoProgress++;
@@ -300,9 +314,12 @@ export function createGeneratorEvaluatorMiddleware(
           const outputWithEvidence = genResult.output + evidence;
 
           // Evaluator: 逐个 criterion 验证（现在有真实证据可以核实！）
+          apiCallCount++;
+          costLog.push(`[API#${apiCallCount}] Evaluator Sprint${sprint.sprintNumber} iter${sprintIterations}`);
           const report = await evaluator({
             sprint, spec, generatorOutput: outputWithEvidence,
             projectDir: ctx.projectDir,
+            sprintContract: (ctx as any)._sprintContract,
           }, ctx.engine);
 
           const criteriaResults = evaluateEachCriterion(
@@ -320,6 +337,22 @@ export function createGeneratorEvaluatorMiddleware(
             sprintResults.push({ success: true, output: outputWithEvidence });
             console.log(`  ✅ Sprint ${sprint.sprintNumber} 通过 (${sprintIterations} 次迭代)`);
             updateProgressSprint(ctx.projectDir, sprint.sprintNumber, { status: "passed", iterations: sprintIterations });
+            
+            // 状态持久化：保存 Pipeline 进度（崩溃后可恢复）
+            try {
+              const { writeFileSync: wfs, mkdirSync: mds } = await import('fs');
+              const { join: jn } = await import('path');
+              const stateDir = jn(ctx.projectDir, '.pipeline-state');
+              mds(stateDir, { recursive: true });
+              wfs(jn(stateDir, 'checkpoint.json'), JSON.stringify({
+                lastCompletedSprint: sprint.sprintNumber,
+                totalSprints: spec.sprintPlan.length,
+                passedSprints: sprintResults.filter(r => r.success).length,
+                apiCalls: apiCallCount,
+                costLog,
+                timestamp: new Date().toISOString(),
+              }, null, 2));
+            } catch { /* state save is best-effort */ }
             // Clean state: 验证项目可交付 (Anthropic Article 1.5)
             const { execCommand } = await import("../utils/agent-executor.js");
             try { const tr = await execCommand("npm", ["test", "--", "--passWithNoTests"], { cwd: ctx.projectDir, timeout: 30000 }); console.log(`  🧹 ${tr.success ? "✅" : "⚠️"} 项目状态检查`); } catch { console.log("  🧹 ⚠️ 项目尚无测试"); }
@@ -343,6 +376,11 @@ export function createGeneratorEvaluatorMiddleware(
 
       ctx.sprintResults = sprintResults;
       const passed = sprintResults.filter(r => r.success).length;
+      
+      // API 成本汇总
+      console.log(`\n💰 API 调用总计: ${apiCallCount} 次`);
+      console.log(`   Sprint通过: ${passed}/${spec.sprintPlan.length}`);
+      
       if (passed < spec.sprintPlan.length) {
         ctx.errors.push(`GeneratorEvaluator: ${passed}/${spec.sprintPlan.length} sprints passed`);
       }
@@ -482,14 +520,86 @@ export function createConvergenceMiddleware(maxIterations: number = 5): Middlewa
 // ============= 构建完整管道 =============
 
 export function createDefaultPipeline(engine: AgentEngine = 'minimax'): Middleware[] {
-  return [
+  const checkpoints = process.env.HARNESS_CONFIRM === 'true';
+  
+  const middlewares: Middleware[] = [
     createPhase0Middleware(engine),
-    createPlannerMiddleware(engine),
-    createInitMiddleware(engine),
-    createGeneratorEvaluatorMiddleware(engine, 50, 10),
-    createDeliveryMiddleware(engine),
-    createDevOpsMiddleware(engine),
-    createMarketingMiddleware(engine),
-    createConvergenceMiddleware(5),
   ];
+  
+  if (checkpoints) middlewares.push(createCheckpointMiddleware('Phase0', '收敛需求已生成，请审查'));
+  middlewares.push(createPlannerMiddleware(engine));
+  
+  if (checkpoints) middlewares.push(createCheckpointMiddleware('Phase1', 'Sprint计划已生成，请审查'));
+  middlewares.push(createInitMiddleware(engine));
+  middlewares.push(createGeneratorEvaluatorMiddleware(engine, 50, 10));
+  
+  if (checkpoints) middlewares.push(createCheckpointMiddleware('Phase2', '所有Sprint已完成，请审查'));
+  middlewares.push(createDeliveryMiddleware(engine));
+  middlewares.push(createDevOpsMiddleware(engine));
+  middlewares.push(createMarketingMiddleware(engine));
+  middlewares.push(createConvergenceMiddleware(5));
+  
+  return middlewares;
+}
+
+// ============= 确认断点中间件 =============
+
+function createCheckpointMiddleware(label: string, msg: string): Middleware {
+  return {
+    name: 'Checkpoint-' + label,
+    phase: 'checkpoint',
+    agentDef: {
+      id: 'agent-checkpoint-' + label.toLowerCase(),
+      name: 'Checkpoint ' + label,
+      role: 'gate',
+      domain: 'orchestration',
+      capabilities: ['pause', 'confirm'],
+      engine: 'minimax',
+    },
+    async run(ctx: PipelineContext, next: () => Promise<void>) {
+      console.log('\n' + '='.repeat(60));
+      console.log('⏸️  CHECKPOINT: ' + label + ' | ' + msg);
+      console.log('='.repeat(60));
+
+      if (label === 'Phase0' && ctx.convergedRequirement) {
+        console.log('收敛需求: ' + ctx.convergedRequirement.slice(0, 200) + '...');
+      }
+      if (label === 'Phase1' && ctx.productSpec) {
+        const s = ctx.productSpec as any;
+        console.log('Sprint: ' + (s.sprintPlan?.length || 0) + '个 | Must: ' + (s.featureList?.must?.length || 0) + '个');
+      }
+      if (label === 'Phase2' && ctx.sprintResults) {
+        const sr = ctx.sprintResults as any[];
+        console.log('通过: ' + sr.filter((r:any)=>r.success).length + '/' + sr.length);
+      }
+
+      console.log('\n[Enter=继续 | stop=终止 | retry=重试] (30s自动继续)');
+
+      try {
+        const rl = (await import('readline')).createInterface({ input: process.stdin, output: process.stdout });
+        const input = await new Promise<string>(resolve => {
+          const t = setTimeout(() => { rl.close(); resolve(''); }, 30000);
+          rl.question('> ', (a: string) => { clearTimeout(t); rl.close(); resolve(a.trim().toLowerCase()); });
+        });
+
+        if (input === 'stop') {
+          ctx.shouldStop = true;
+          ctx.errors.push('用户手动停止于: ' + label);
+          console.log('⏹️  用户终止');
+          return;
+        }
+        if (input === 'retry') {
+          console.log('🔄 用户要求重试 ' + label);
+          ctx.shouldStop = false;
+          if (label === 'Phase0') (ctx as any).convergedRequirement = undefined;
+          if (label === 'Phase1') (ctx as any).productSpec = undefined;
+          if (label === 'Phase2') (ctx as any).sprintResults = undefined;
+          return;
+        }
+      } catch { /* stdin not available, auto-continue */ }
+
+      console.log('✅ 继续执行');
+      await next();
+    },
+  };
 }
