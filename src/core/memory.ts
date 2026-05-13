@@ -282,3 +282,115 @@ export class AgentMemory {
     this.flush();
   }
 }
+
+// ═══════════ P1-8: 闭环反思 (借鉴 TradingAgents Reflector + MemoryLog) ═══════════
+
+export interface ReflectionEntry {
+  taskId: number;
+  projectName: string;
+  outcome: 'pass' | 'fail';
+  lesson: string;           // 2-4句精炼教训
+  rawReturn?: string;       // 可量化指标（如"总分8.5/10"）
+  createdAt: string;
+}
+
+export class ReflectionLog {
+  private logPath: string;
+  private static SEPARATOR = '\n\n<!-- ENTRY_END -->\n\n';
+
+  constructor(baseDir: string) {
+    this.logPath = join(baseDir, 'reflection-log.md');
+  }
+
+  /**
+   * 记录任务反思
+   * 借鉴 TradingAgents: 2-4句精炼教训
+   */
+  record(reflection: ReflectionEntry): void {
+    const tag = `[${reflection.createdAt} | ${reflection.projectName} | ${reflection.outcome} | ${reflection.rawReturn || 'n/a'}]`;
+    const entry = `${tag}\n\nLESSON:\n${reflection.lesson}${ReflectionLog.SEPARATOR}`;
+    try {
+      appendFileSync(this.logPath, entry);
+    } catch { /* 静默 */ }
+  }
+
+  /**
+   * 获取项目的历史教训 (用于注入到新任务 prompt)
+   * 借鉴 TradingAgents get_past_context():
+   *   - 同项目最多 5 条
+   *   - 跨项目最多 3 条
+   */
+  getPastContext(projectName: string, nSame = 5, nCross = 3): string {
+    const entries = this.loadAll();
+    if (entries.length === 0) return '';
+
+    const same: ReflectionEntry[] = [];
+    const cross: ReflectionEntry[] = [];
+
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i];
+      if (e.projectName === projectName && same.length < nSame) {
+        same.push(e);
+      } else if (e.projectName !== projectName && cross.length < nCross) {
+        cross.push(e);
+      }
+      if (same.length >= nSame && cross.length >= nCross) break;
+    }
+
+    if (same.length === 0 && cross.length === 0) return '';
+
+    const parts: string[] = [];
+    if (same.length > 0) {
+      parts.push(`## 历史教训 (${projectName}, 最近 ${same.length} 条)`);
+      same.reverse().forEach(e => {
+        parts.push(`- [${e.outcome}] ${e.lesson}`);
+      });
+    }
+    if (cross.length > 0) {
+      parts.push(`\n## 跨项目教训 (最近 ${cross.length} 条)`);
+      cross.reverse().forEach(e => {
+        parts.push(`- [${e.projectName} | ${e.outcome}] ${e.lesson}`);
+      });
+    }
+    return parts.join('\n');
+  }
+
+  /**
+   * 加载所有反思条目
+   */
+  loadAll(): ReflectionEntry[] {
+    if (!existsSync(this.logPath)) return [];
+    try {
+      const text = readFileSync(this.logPath, 'utf-8');
+      const blocks = text.split(ReflectionLog.SEPARATOR).filter(b => b.trim());
+      const entries: ReflectionEntry[] = [];
+      for (const block of blocks) {
+        const parsed = this._parseBlock(block);
+        if (parsed) entries.push(parsed);
+      }
+      return entries;
+    } catch {
+      return [];
+    }
+  }
+
+  private _parseBlock(block: string): ReflectionEntry | null {
+    const lines = block.trim().split('\n');
+    if (lines.length < 2) return null;
+    const tagLine = lines[0].trim();
+    const tagMatch = tagLine.match(/\[(.+?) \| (.+?) \| (.+?) \| (.+?)\]/);
+    if (!tagMatch) return null;
+
+    const lessonMatch = block.match(/LESSON:\n([\s\S]*?)$/);
+    const lesson = lessonMatch ? lessonMatch[1].trim() : '';
+
+    return {
+      taskId: 0, // 从 tag 中无 taskId
+      projectName: tagMatch[2],
+      outcome: tagMatch[3] as 'pass' | 'fail',
+      lesson,
+      rawReturn: tagMatch[4],
+      createdAt: tagMatch[1],
+    };
+  }
+}

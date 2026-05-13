@@ -345,3 +345,86 @@
 - P3 (体验性): 3 项
 
 预计执行时间: P0 约 2 小时, P1 约 3 小时, P2 约 2 小时, P3 约 2 小时
+
+---
+
+# 补充: TradingAgents (TauricResearch, 74,870★) 三大模式
+
+## 源码分析摘要
+
+| 文件 | 行数 | 核心内容 |
+|------|------|---------|
+| `agents/researchers/bull_researcher.py` | 52 | "直接回应对方，用数据反驳" 强制对抗 Prompt |
+| `agents/researchers/bear_researcher.py` | 52 | 对称结构，反方论证 |
+| `graph/conditional_logic.py` | 56 | count 计数器控制辩论轮数 (max_debate_rounds=1) |
+| `graph/setup.py` | 186 | quick_think_llm 给分析师，deep_think_llm 给决策层 |
+| `default_config.py` | 121 | deep_think_llm="gpt-5.4", quick_think_llm="gpt-5.4-mini" |
+| `graph/reflection.py` | 57 | 2-4句精炼教训，对比基准收益 |
+| `agents/utils/memory.py` | 300 | Append-only markdown log, get_past_context() |
+
+---
+
+## P1-6: Phase 0 需求讨论 → 强制正反方辩论 (借鉴 Bull/Bear)
+
+**当前问题**: Phase 0 discuss 是单轮对话，无对抗性质疑
+
+**借鉴**: TradingAgents Bull/Bear "直接回应对方观点，用数据反驳"
+
+**原子修改**:
+1. `src/agents/phase0-discuss.ts` 增加 `proposer` 和 `challenger` 两个角色
+2. 至少 2 轮辩论 (proposer→challenger→proposer→challenger)
+3. Challenger 的 prompt 强制要求: "直接回应 proposer 的每个观点，用具体数据或案例反驳"
+4. 最终输出包含 "辩论摘要: 共识点 / 分歧点 / 未解决问题"
+
+**验证点**:
+- [ ] `npx tsx tests/p1-6-phase0-debate.test.ts` 输出 PASS
+- [ ] 需求讨论输出包含至少 2 条反驳点
+- [ ] 输出 REQUIREMENT.md 包含 "辩论摘要" 区域
+
+---
+
+## P1-7: 分级 LLM 分配 (deep_think / quick_think)
+
+**当前问题**: 所有 Agent 用同一个引擎配置，Planner 和 Generator 消耗相同算力
+
+**借鉴**: TradingAgents 分级策略 (分析师用 mini，决策层用 pro)
+
+**原子修改**:
+1. `AgentConfig` 增加 `thinkingLevel: 'deep' | 'quick'` 字段
+2. Planner/Evaluator/CEO → deep_think (MiniMax M2.7 Pro)
+3. Generator/Marketing/DevOps → quick_think (MiniMax M2.7)
+4. 代价节省: Generator 用的 token 远多于 Planner，分级后可减少 30-50% 成本
+
+**验证点**:
+- [ ] `npx tsx tests/p1-7-tiered-llm.test.ts` 输出 PASS
+- [ ] Planner 调用使用 deep 模型 → 日志显示
+- [ ] Generator 调用使用 quick 模型 → 日志显示
+- [ ] 配置切换不影响功能
+
+---
+
+## P1-8: 闭环反思进化 (Reflection + Memory Log)
+
+**当前问题**: 任务完成后无反思，Memory 只存不读
+
+**借鉴**: TradingAgents Reflector + TradingMemoryLog + get_past_context()
+
+**原子修改**:
+1. `src/core/memory.ts` 增加 `reflect(taskId, outcome, lesson)` 方法
+2. 每个任务完成后自动调用 Reflector（用 2-4 句话提炼教训）
+3. 新任务启动时 `get_past_context(projectName)` 自动注入教训到 prompt
+4. 内存格式: Markdown append-only log，带 `<!-- ENTRY_END -->` 分隔
+
+**验证点**:
+- [ ] `npx tsx tests/p1-8-reflection.test.ts` 输出 PASS
+- [ ] 任务 A 失败 → Reflector 记录教训 → 任务 B 启动时注入教训
+- [ ] 同项目最多注入 5 条历史教训
+- [ ] 反思输出为 2-4 句精炼英文/中文
+
+---
+
+# 更新后的总计: 20 项原子改进
+- P0 (核心漏洞): 5 项 ✅ 已完成
+- P1 (架构性): 8 项 (原5项 + TradingAgents 3项)
+- P2 (工程化): 4 项
+- P3 (体验性): 3 项
