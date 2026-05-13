@@ -27,17 +27,31 @@ async function main() {
     return;
   }
 
-  if (args.length === 0) {
-    console.log('Snake of Mercury v4\n用法: npm run v3 -- "需求" ["需求2" ...]\n恢复: npm run v3 -- --resume');
-    process.exit(1);
-  }
+  // 允许无参数启动 (会尝试读取 REQUIREMENT.md)
+  // 如果既无参数也无 REQUIREMENT.md，显示帮助
 
   const engine = (process.env.HARNESS_ENGINE || 'minimax') as AgentEngine;
   const projectDir = process.cwd();
   const ceo = new CEO(engine);
 
+  // v4: Phase 0 桥接 — 读取 REQUIREMENT.md
+  const { existsSync, readFileSync } = await import('fs');
+  const { join } = await import('path');
+  const reqPath = join(projectDir, '.tasks', 'REQUIREMENT.md');
+  let requirements = args;
+  
+  if (requirements.length === 0 && existsSync(reqPath)) {
+    console.log('📄 检测到 REQUIREMENT.md，自动读取...');
+    const reqDoc = readFileSync(reqPath, 'utf-8');
+    // 从文档中提取原始需求
+    const origMatch = reqDoc.match(/原始需求[:：]\s*"([^"]+)"/);
+    if (origMatch) {
+      requirements = [origMatch[1]];
+      console.log('需求: ' + requirements[0].slice(0, 80));
+    }
+  }
+
   // v4: 多项目并行
-  const requirements = args;
   console.log(`\n🐍 Snake of Mercury v4 | 引擎: ${engine}`);
   console.log(`项目数: ${requirements.length}`);
 
