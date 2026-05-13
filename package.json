@@ -16,7 +16,7 @@
     "pipeline:minimax": "HARNESS_MODE=pipeline HARNESS_ENGINE=minimax tsx src/harness-scheduler.ts",
     "v3": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json --noEmit",
-    "discuss": "tsx src/discuss.ts"
+    "discuss": "tsx src/discuss-server.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.50.0",
