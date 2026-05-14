@@ -126,12 +126,12 @@ export class TaskDAG {
 
   /** 可以做的任务（pending 且所有前置已完成） */
   getReady(): Task[] {
-    return this.list().filter(t => 
-      t.status === 'pending' && 
-      t.blockedBy.every(depId => {
-        const dep = this.get(depId);
-        return dep && dep.status === 'completed';
-      })
+    // P1修复: 一次加载所有 tasks 到内存，避免 N+1 文件 IO
+    const all = this.list();
+    const completedIds = new Set(all.filter(t => t.status === 'completed').map(t => t.id));
+    return all.filter(t =>
+      t.status === 'pending' &&
+      t.blockedBy.every(depId => completedIds.has(depId))
     );
   }
 
