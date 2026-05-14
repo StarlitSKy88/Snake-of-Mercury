@@ -16,4 +16,6 @@ event-log.jsonl
 coverage/
 node_modules/
 .DS_Store
-archive/claude-code-leaked
+archive/
+node_modules/.vite/
+.tasks/discussions/
