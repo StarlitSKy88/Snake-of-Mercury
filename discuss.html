@@ -190,6 +190,10 @@ header .status { font-size: 12px; color: var(--muted); margin-left: auto; }
   white-space: nowrap;
 }
 #input-area button:disabled { opacity: 0.4; cursor: not-allowed; }
+#stop-btn { background: #ff9800; display: none; }
+#stop-btn.visible { display: inline-block; }
+#edit-last-btn { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; font-size: 11px; border-radius: 12px; cursor: pointer; display: none; }
+#edit-last-btn.visible { display: inline-block; }
 .loading { display: inline-flex; gap: 4px; padding: 4px 0; }
 .loading span {
   width: 6px; height: 6px;
@@ -228,13 +232,18 @@ header .status { font-size: 12px; color: var(--muted); margin-left: auto; }
 
   <div id="input-area">
     <input id="user-input" placeholder="输入你的想法..." autofocus>
+    <button id="edit-last-btn" onclick="editLastMessage()" title="编辑上一条消息 (↑)">✎</button>
     <button id="send-btn" onclick="sendMessage()">发送</button>
+    <button id="stop-btn" onclick="stopSending()" title="中断当前回复">⏹ 停止</button>
   </div>
 </div>
 
 <script>
 let currentSessionId = 'sess-' + Date.now();
 let currentSaved = false;
+let isComposing = false;  // IME 组合输入状态
+let abortController = null;  // 用于中断请求
+let lastUserMsg = null;  // 上一条用户消息 DOM 元素
 
 const messages = document.getElementById('messages');
 const input = document.getElementById('user-input');
@@ -242,6 +251,8 @@ const btn = document.getElementById('send-btn');
 const statusEl = document.getElementById('status');
 const dot = document.getElementById('dot');
 const sessionList = document.getElementById('session-list');
+const stopBtn = document.getElementById('stop-btn');
+const editLastBtn = document.getElementById('edit-last-btn');
 
 // ═══════ 会话管理 ═══════
 
@@ -278,6 +289,8 @@ async function switchSession(id) {
       renderTurns(data.session.turns);
       loadSessions();
       updateInputState();
+      stopBtn.classList.remove('visible');
+      abortController = null;
     }
   } catch(e) {}
 }
@@ -332,6 +345,7 @@ function addMsg(text, role) {
   
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+  return div;
 }
 
 function updateInputState() {
@@ -365,18 +379,25 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text || currentSaved) return;
 
-  addMsg(text, 'user');
+  const userMsg = addMsg(text, 'user');
+  lastUserMsg = userMsg;
+  editLastBtn.classList.add('visible');
   input.value = '';
   input.disabled = true;
   btn.disabled = true;
+  stopBtn.classList.add('visible');
   statusEl.textContent = '思考中...';
   showLoading();
+
+  // AbortController for interrupt
+  abortController = new AbortController();
 
   try {
     const res = await fetch('/api/discuss', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, sessionId: currentSessionId })
+      body: JSON.stringify({ message: text, sessionId: currentSessionId }),
+      signal: abortController.signal
     });
     const data = await res.json();
     hideLoading();
@@ -392,11 +413,15 @@ async function sendMessage() {
       }
       loadSessions();
       updateInputState();
+      stopBtn.classList.remove('visible');
+      abortController = null;
     } else {
       addMsg('❌ ' + (data.error || '失败'), 'system');
       statusEl.textContent = '错误';
       input.disabled = false;
       btn.disabled = false;
+      stopBtn.classList.remove('visible');
+      abortController = null;
     }
   } catch (err) {
     hideLoading();
@@ -405,9 +430,39 @@ async function sendMessage() {
     dot.className = 'dot offline';
     input.disabled = false;
     btn.disabled = false;
+    stopBtn.classList.remove('visible');
+    abortController = null;
   }
 
   input.focus();
+}
+
+// ═══════ 中断 + 编辑 ═══════
+
+function stopSending() {
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+  }
+  input.disabled = false;
+  btn.disabled = false;
+  stopBtn.classList.remove('visible');
+  hideLoading();
+  statusEl.textContent = '已中断';
+  addMsg('⏹ 已停止生成', 'system');
+  input.focus();
+}
+
+function editLastMessage() {
+  if (!lastUserMsg) return;
+  const text = lastUserMsg.textContent || '';
+  input.value = text;
+  input.focus();
+  // 移除该消息
+  lastUserMsg.remove();
+  lastUserMsg = null;
+  editLastBtn.classList.remove('visible');
+  // TODO: 从后端 session 中也移除
 }
 
 // ═══════ 辅助 ═══════
@@ -421,7 +476,23 @@ function timeAgo(ts) {
   return Math.floor(diff/86400000) + '天前';
 }
 
-input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+// IME composition tracking
+input.addEventListener('compositionstart', () => { isComposing = true; });
+input.addEventListener('compositionend', () => { isComposing = false; });
+// Enter = 发送 (IME组合中不触发, Shift+Enter = 换行)
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !isComposing && !e.isComposing) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+// ↑ 方向键 = 编辑上一条消息
+input.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' && input.value === '' && lastUserMsg) {
+    e.preventDefault();
+    editLastMessage();
+  }
+});
 
 // 启动
 loadSessions();
