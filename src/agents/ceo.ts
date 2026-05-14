@@ -17,6 +17,8 @@ import { deploy } from './devops.js';
 import { optimizeMarketing } from './marketing.js';
 import { hasCodeExecutorSignature } from '../core/evidence-guard.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 // ============ 类型 ============
 
@@ -187,8 +189,6 @@ export class CEO {
   }
 
   saveState(project: Project): string {
-    const { writeFileSync } = require('fs');
-    const { join } = require('path');
     const dag = project.dag;
     const tasks = dag.list();
     const completed = tasks.filter(t => t.status === 'completed');
@@ -225,8 +225,6 @@ export class CEO {
   }
 
   resume(project: Project): boolean {
-    const { existsSync, readFileSync } = require('fs');
-    const { join } = require('path');
     const path = join(project.projectDir, '.tasks', 'HANDOFF.md');
     if (!existsSync(path)) {
       console.log('未找到 HANDOFF.md');

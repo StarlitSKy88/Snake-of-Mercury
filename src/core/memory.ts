@@ -390,19 +390,28 @@ export class ReflectionLog {
     const lines = block.trim().split('\n');
     if (lines.length < 2) return null;
     const tagLine = lines[0].trim();
-    const tagMatch = tagLine.match(/\[(.+?) \| (.+?) \| (.+?) \| (.+?)\]/);
+    // 改进: 使用 [^\]]+ 替代 .+? 防止内容含 ] 时提前终止
+    const tagMatch = tagLine.match(/\[([^\]]+)\]/);
     if (!tagMatch) return null;
+
+    // 解析 tag: [date | projectName | outcome | rawReturn]
+    const tagParts = tagMatch[1].split('|').map(s => s.trim());
+    if (tagParts.length < 4) return null;
 
     const lessonMatch = block.match(/LESSON:\n([\s\S]*?)$/);
     const lesson = lessonMatch ? lessonMatch[1].trim() : '';
 
+    // 验证字段合法性
+    const validOutcomes = ['pass', 'fail', 'pending'];
+    const outcome = validOutcomes.includes(tagParts[2]) ? tagParts[2] : 'fail';
+
     return {
-      taskId: 0, // 从 tag 中无 taskId
-      projectName: tagMatch[2],
-      outcome: tagMatch[3] as 'pass' | 'fail',
+      taskId: 0,
+      projectName: tagParts[1] || 'unknown',
+      outcome: outcome as 'pass' | 'fail',
       lesson,
-      rawReturn: tagMatch[4],
-      createdAt: tagMatch[1],
+      rawReturn: tagParts[3] || 'n/a',
+      createdAt: tagParts[0] || new Date().toISOString(),
     };
   }
 }

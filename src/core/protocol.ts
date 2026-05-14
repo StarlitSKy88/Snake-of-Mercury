@@ -63,7 +63,9 @@ export class ProtocolBus {
     // 如果发给 user，打印到控制台
     if (to === 'user') {
       console.log(`\n📋 [${type}] ${from} → ${to}: ${subject}`);
-      console.log(`${payload.slice(0, 200)}`);
+      // 安全截断: 去除 ANSI 转义后再截断
+      const clean = payload.replace(/\x1b\[[0-9;]*m/g, '').slice(0, 200);
+      console.log(clean + (payload.length > 200 ? '...' : ''));
       console.log(`ID: ${req.id} (respond with: approve ${req.id} / reject ${req.id} [reason])\n`);
     }
 

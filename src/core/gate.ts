@@ -91,6 +91,8 @@ export class Gate {
   /**
    * 检查审批是否已通过
    */
+  /** 查询审批状态。注意: 调用者不应在 tight loop 中轮询此方法；
+   *  建议使用 event-driven 模式或在循环中加入 sleep。 */
   isApproved(requestId: string): boolean {
     const req = this.protocol.get(requestId);
     return req?.status === 'approved';

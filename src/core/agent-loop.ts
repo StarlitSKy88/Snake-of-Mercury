@@ -118,8 +118,8 @@ export async function agentLoop(
   task: string,
   config: AgentLoopConfig
 ): Promise<AgentLoopResult> {
-  const maxIterations = config.maxIterations || 50;
-  const hardLimit = config.maxIterationsHard || 100;
+  const maxIterations = config.maxIterations || 50;  // 默认50轮 (配置可覆盖)
+  const hardLimit = config.maxIterationsHard || 100;  // 硬上限 (防无限循环)
   const effectiveMax = Math.min(maxIterations, hardLimit);
   
   let output = '';
