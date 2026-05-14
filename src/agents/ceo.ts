@@ -249,6 +249,7 @@ export class CEO {
   runAsync(project: Project, requirement: string): Promise<void> {
     return this.run(project, requirement).catch(err => {
       console.error(`[${project.name}] 异常:`, err?.message || err);
+      throw err; // P0修复: 重新抛出，调用者可以感知失败
     });
   }
 

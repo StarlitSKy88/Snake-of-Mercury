@@ -68,9 +68,11 @@ export class AgentMemory {
     this.indexPath = join(baseDir, 'memory-index.json');
     this.journalPath = join(baseDir, 'memory-journal.jsonl');
     this.load();
+    // P0修复: 进程退出时确保 flush
+    this._setupExitHandlers();
     
     // 每30秒自动保存
-    this.autoSaveInterval = setInterval(() => this.flush(), 30000);
+    this.autoSaveInterval = setInterval(() => this.flush(), 5000); // P0修复: 30s→5s, 减少crash数据丢失
   }
 
   // ===== CRUD =====
@@ -259,10 +261,11 @@ export class AgentMemory {
           this.entries.set(entry.id, entry);
         }
         return;
-      } catch { /* 损坏，从 journal 恢复 */ }
+      } catch { /* index 损坏，从 journal 恢复 */ }
     }
 
-    // 从 journal 恢复
+    // P0修复: journal 为主要恢复路径，index 只是缓存
+    let loadedFromJournal = false;
     if (existsSync(this.journalPath)) {
       try {
         const lines = readFileSync(this.journalPath, 'utf-8').trim().split('\n');
@@ -272,11 +275,20 @@ export class AgentMemory {
             this.entries.set(entry.id, entry);
           } catch { /* skip bad lines */ }
         }
+        loadedFromJournal = true;
       } catch { /* empty or corrupt */ }
     }
   }
 
   /** 关闭（保存并清理定时器） */
+  /** P0修复: 注册进程退出处理器 */
+  private _setupExitHandlers(): void {
+    const cleanup = () => { this.flush(); };
+    process.once('SIGINT', cleanup);
+    process.once('SIGTERM', cleanup);
+    process.once('beforeExit', cleanup);
+  }
+
   close(): void {
     clearInterval(this.autoSaveInterval);
     this.flush();
