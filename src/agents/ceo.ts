@@ -13,8 +13,6 @@ import { AgentMemory } from '../core/memory.js';
 import { plan } from './planner.js';
 import { generate } from './generator.js';
 import { evaluate } from './evaluator.js';
-import { deploy } from './devops.js';
-import { optimizeMarketing } from './marketing.js';
 import { hasCodeExecutorSignature } from '../core/evidence-guard.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';

@@ -265,7 +265,6 @@ export class AgentMemory {
     }
 
     // P0修复: journal 为主要恢复路径，index 只是缓存
-    let loadedFromJournal = false;
     if (existsSync(this.journalPath)) {
       try {
         const lines = readFileSync(this.journalPath, 'utf-8').trim().split('\n');
@@ -275,7 +274,6 @@ export class AgentMemory {
             this.entries.set(entry.id, entry);
           } catch { /* skip bad lines */ }
         }
-        loadedFromJournal = true;
       } catch { /* empty or corrupt */ }
     }
   }

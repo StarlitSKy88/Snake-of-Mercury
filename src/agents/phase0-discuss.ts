@@ -161,12 +161,6 @@ async function marketResearch(requirement: string): Promise<string> {
 
 // ═══════════ P1-6: 正反方辩论 ═══════════
 
-interface DebateRound {
-  round: number;
-  proposer: string;
-  challenger: string;
-}
-
 async function runDebate(
   analysis: string,
   requirement: string,
