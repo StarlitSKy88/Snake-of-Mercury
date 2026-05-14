@@ -155,6 +155,30 @@ export class TaskDAG {
   }
 
   /** 已完成的 */
+  /** P1-2: 动态委派 — 根据任务内容自动路由到合适的 Agent */
+  assign(id: number, agentId: string): boolean {
+    const task = this.get(id);
+    if (!task || task.status !== 'pending') return false;
+    this.update(id, { owner: agentId });
+    return true;
+  }
+
+  /** 按 owner 查询任务 */
+  getByOwner(agentId: string): Task[] {
+    return this.list().filter(t => t.owner === agentId);
+  }
+
+  /** P1-2: 根据任务内容建议 Agent */
+  static suggestOwner(task: Task): string {
+    const text = (task.subject + ' ' + task.description).toLowerCase();
+    if (/deploy|部署|发布|上线|server|nginx|ssl|域名|dns|cdn|ci.cd|pm2/i.test(text)) return 'devops';
+    if (/seo|推广|营销|广告|analytics|分析|数据|用户增长|转化/i.test(text)) return 'marketing';
+    if (/ui|设计|样式|css|前端|动画|布局|配色|图标|字体/i.test(text)) return 'generator';
+    if (/api|后端|数据库|auth|登录|注册|接口/i.test(text)) return 'generator';
+    return 'generator'; // 默认
+  }
+
+
   getCompleted(): Task[] {
     return this.list().filter(t => t.status === 'completed');
   }
