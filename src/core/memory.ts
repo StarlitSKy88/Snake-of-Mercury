@@ -317,7 +317,7 @@ export class ReflectionLog {
    * 借鉴 TradingAgents: 2-4句精炼教训
    */
   record(reflection: ReflectionEntry): void {
-    const tag = `[${reflection.createdAt} | ${reflection.projectName} | ${reflection.outcome} | ${reflection.rawReturn || 'n/a'}]`;
+    const tag = `[${reflection.createdAt} | ${reflection.projectName} | task-${reflection.taskId} | ${reflection.outcome} | ${reflection.rawReturn || 'n/a'}]`;
     const entry = `${tag}\n\nLESSON:\n${reflection.lesson}${ReflectionLog.SEPARATOR}`;
     try {
       appendFileSync(this.logPath, entry);
@@ -392,23 +392,34 @@ export class ReflectionLog {
     const tagMatch = tagLine.match(/\[([^\]]+)\]/);
     if (!tagMatch) return null;
 
-    // 解析 tag: [date | projectName | outcome | rawReturn]
+    // 解析 tag: [date | projectName | (task-N)? | outcome | rawReturn]
     const tagParts = tagMatch[1].split('|').map(s => s.trim());
     if (tagParts.length < 4) return null;
+
+    // 兼容旧格式(无 taskId)和新格式(含 task-N)
+    let taskId = 0;
+    let outcomeIdx = 2;
+    if (tagParts.length >= 5) {
+      const tidMatch = tagParts[2].match(/^task-(\d+)$/);
+      if (tidMatch) {
+        taskId = parseInt(tidMatch[1], 10);
+        outcomeIdx = 3;
+      }
+    }
 
     const lessonMatch = block.match(/LESSON:\n([\s\S]*?)$/);
     const lesson = lessonMatch ? lessonMatch[1].trim() : '';
 
     // 验证字段合法性
     const validOutcomes = ['pass', 'fail', 'pending'];
-    const outcome = validOutcomes.includes(tagParts[2]) ? tagParts[2] : 'fail';
+    const outcome = validOutcomes.includes(tagParts[outcomeIdx]) ? tagParts[outcomeIdx] : 'fail';
 
     return {
-      taskId: 0,
+      taskId,
       projectName: tagParts[1] || 'unknown',
       outcome: outcome as 'pass' | 'fail',
       lesson,
-      rawReturn: tagParts[3] || 'n/a',
+      rawReturn: tagParts[outcomeIdx + 1] || 'n/a',
       createdAt: tagParts[0] || new Date().toISOString(),
     };
   }

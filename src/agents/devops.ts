@@ -8,7 +8,7 @@
  * 4. 向 CEO 汇报状态
  */
 
-import { TaskDAG, type Task } from '../core/task-dag.js';
+import { TaskDAG } from '../core/task-dag.js';
 import { agentCall } from '../core/agent-loop.js';
 import { AgentMemory } from '../core/memory.js';
 import { THREE_RED_LINES } from '../constraints/pua.js';

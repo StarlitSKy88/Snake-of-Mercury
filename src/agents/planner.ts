@@ -7,7 +7,7 @@
  *   3. TASKS:  生成 Task DAG
  */
 
-import { TaskDAG, type Task } from '../core/task-dag.js';
+import { TaskDAG } from '../core/task-dag.js';
 import { agentCall } from '../core/agent-loop.js';
 import { THREE_RED_LINES, RATIONALIZATIONS, RED_FLAGS } from '../constraints/pua.js';
 import type { AgentEngine } from '../utils/agent-executor.js';
