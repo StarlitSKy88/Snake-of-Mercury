@@ -245,6 +245,69 @@ header .status { font-size: 12px; color: var(--muted); margin-left: auto; }
 #user-info { padding: 8px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
 #user-info .logout { color: var(--accent); cursor: pointer; font-size: 11px; }
 
+
+/* ═══ Tab 导航 ═══ */
+#tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+#tab-nav button { 
+  flex: 1; padding: 10px 0; background: none; border: none; color: var(--muted);
+  font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+#tab-nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ═══ Dashboard ═══ */
+#dashboard { display: none; flex: 1; overflow-y: auto; padding: 20px; flex-direction: column; gap: 12px; }
+#dashboard.visible { display: flex; }
+#messages.hidden { display: none; }
+#input-area.hidden { display: none; }
+
+.dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.dash-header h2 { font-size: 16px; font-weight: 400; }
+.dash-header button { background: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 14px; cursor: pointer; font-size: 13px; }
+
+.project-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px;
+  cursor: pointer; transition: border-color 0.2s;
+}
+.project-card:hover { border-color: var(--accent); }
+.project-card .p-name { font-size: 15px; margin-bottom: 6px; }
+.project-card .p-status {
+  display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px;
+}
+.status-created { background: rgba(255,255,255,0.06); color: var(--muted); }
+.status-planning { background: rgba(33,150,243,0.15); color: #2196F3; }
+.status-building { background: rgba(255,152,0,0.15); color: #FF9800; }
+.status-reviewing { background: rgba(156,39,176,0.15); color: #9C27B0; }
+.status-deployed { background: rgba(76,175,80,0.15); color: var(--green); }
+.status-paused { background: rgba(244,67,54,0.1); color: var(--accent); }
+.project-card .p-meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.project-card .p-bar {
+  height: 3px; background: var(--line); border-radius: 2px; margin-top: 8px; overflow: hidden;
+}
+.project-card .p-bar-fill {
+  height: 100%; background: var(--green); border-radius: 2px; transition: width 0.5s;
+}
+
+/* Project Detail */
+#project-detail { display: none; flex: 1; overflow-y: auto; padding: 20px; flex-direction: column; gap: 12px; }
+#project-detail.visible { display: flex; }
+#project-detail .back-btn { background: none; border: 1px solid var(--line); color: var(--muted); padding: 4px 12px; border-radius: 10px; cursor: pointer; font-size: 12px; align-self: flex-start; }
+.task-item { padding: 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; display: flex; justify-content: space-between; }
+.task-item.done { border-color: var(--green); opacity: 0.8; }
+.task-item.failed { border-color: var(--accent); }
+.inbox-item { padding: 10px; border: 1px solid #FF9800; border-radius: 8px; font-size: 13px; }
+.inbox-item .actions { margin-top: 8px; display: flex; gap: 8px; }
+.inbox-item .actions button { padding: 4px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; }
+.btn-approve { background: var(--green); color: #000; }
+.btn-reject { background: var(--accent); color: #fff; }
+
+/* New Project Dialog */
+#new-project-dialog { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+#new-project-dialog.visible { display: flex; }
+#new-project-dialog .dialog-box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; width: 400px; max-width: 90vw; }
+#new-project-dialog textarea { width: 100%; background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 10px; border-radius: 10px; font-size: 14px; resize: vertical; min-height: 80px; }
+#new-project-dialog .dialog-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+
 </style>
 </head>
 <body>
@@ -295,7 +358,41 @@ header .status { font-size: 12px; color: var(--muted); margin-left: auto; }
     <div class="dot online" id="dot"></div>
     <h1>Phase 0 · 需求讨论</h1>
     <span class="status" id="status">就绪</span>
-  </header>
+  
+</header>
+<div id="tab-nav">
+  <button id="tab-chat" class="active" onclick="switchTab('chat')">💬 对话</button>
+  <button id="tab-dashboard" onclick="switchTab('dashboard')">📊 项目</button>
+</div>
+<div id="dashboard">
+  <div class="dash-header">
+    <h2>我的项目</h2>
+    <button onclick="showNewProject()">+ 新建项目</button>
+  </div>
+  <div id="project-cards"></div>
+</div>
+<div id="project-detail">
+  <button class="back-btn" onclick="switchTab('dashboard')">← 返回</button>
+  <h2 id="detail-name" style="font-weight:400;margin-top:8px;"></h2>
+  <div id="detail-tasks"></div>
+  <div id="detail-inbox"></div>
+  <div style="margin-top:12px;">
+    <h3 style="font-size:13px;color:var(--muted);margin-bottom:8px;">💬 反馈优化</h3>
+    <textarea id="feedback-input" placeholder="输入反馈，如：加载太慢、需要暗色模式..." style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:8px;border-radius:8px;font-size:13px;resize:vertical;min-height:50px;"></textarea>
+    <button onclick="submitFeedback()" style="margin-top:8px;background:var(--accent);color:#fff;border:none;padding:6px 16px;border-radius:12px;cursor:pointer;font-size:13px;">提交反馈</button>
+  </div>
+</div>
+<div id="new-project-dialog">
+  <div class="dialog-box">
+    <h2 style="font-size:16px;font-weight:400;margin-bottom:12px;">新建项目</h2>
+    <textarea id="new-project-req" placeholder="描述你的需求，如：帮我做一个待办事项应用..."></textarea>
+    <div class="dialog-actions">
+      <button onclick="hideNewProject()" style="background:none;border:1px solid var(--line);color:var(--muted);padding:6px 16px;border-radius:10px;cursor:pointer;">取消</button>
+      <button onclick="createProject()" style="background:var(--accent);color:#fff;border:none;padding:6px 16px;border-radius:10px;cursor:pointer;">创建并启动</button>
+    </div>
+  </div>
+</div>
+
 
   <div id="messages">
     <div class="msg system">👋 告诉我你的创业想法，我会通过提问帮你梳理清楚。</div>
@@ -637,6 +734,127 @@ function logout() {
   }
 })();
 
+
+
+// ═══════ Dashboard ═══════
+let currentTab = 'chat';
+let currentDetailProjectId = null;
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-chat').classList.toggle('active', tab === 'chat');
+  document.getElementById('tab-dashboard').classList.toggle('active', tab === 'dashboard');
+  document.getElementById('messages').classList.toggle('hidden', tab !== 'chat');
+  document.getElementById('input-area').classList.toggle('hidden', tab !== 'chat');
+  document.getElementById('dashboard').classList.toggle('visible', tab === 'dashboard');
+  document.getElementById('project-detail').classList.toggle('visible', false);
+  if (tab === 'dashboard') refreshDashboard();
+}
+
+function showNewProject() { document.getElementById('new-project-dialog').classList.add('visible'); }
+function hideNewProject() { document.getElementById('new-project-dialog').classList.remove('visible'); }
+
+async function createProject() {
+  const req = document.getElementById('new-project-req').value.trim();
+  if (!req) return;
+  hideNewProject();
+  try {
+    const res = await fetch('/api/projects/create', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ requirement: req })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('new-project-req').value = '';
+      switchTab('dashboard');
+      refreshDashboard();
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function refreshDashboard() {
+  try {
+    const res = await fetch('/api/projects/list');
+    const data = await res.json();
+    const container = document.getElementById('project-cards');
+    if (!data.projects || data.projects.length === 0) {
+      container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px;">还没有项目，点击上方按钮创建</div>';
+      return;
+    }
+    container.innerHTML = data.projects.map(p => {
+      const summary = p.tasks || '';
+      const done = (summary.match(/done/gi) || []).length;
+      const total = done + (summary.match(/progress|pending/gi) || []).length || 1;
+      const pct = Math.round(done / Math.max(total, 1) * 100);
+      return `<div class="project-card" onclick="openProject('${p.id}','${p.name}')">
+        <div class="p-name">${escHtml(p.name)}</div>
+        <span class="p-status status-${p.status}">${p.status}</span>
+        <div class="p-meta">${summary} | ${p.createdAt ? timeAgo(p.createdAt) : ''}</div>
+        <div class="p-bar"><div class="p-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function openProject(id, name) {
+  currentDetailProjectId = id;
+  document.getElementById('dashboard').classList.remove('visible');
+  document.getElementById('project-detail').classList.add('visible');
+  document.getElementById('detail-name').textContent = name;
+  await refreshProjectDetail(id);
+  connectSSE(id);
+}
+
+let currentSSE = null;
+function connectSSE(projectId) {
+  if (currentSSE) currentSSE.close();
+  currentSSE = new EventSource('/api/projects/' + projectId + '/stream');
+  currentSSE.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'connected') return;
+      refreshProjectDetail(projectId);
+    } catch {}
+  };
+  currentSSE.onerror = () => { currentSSE?.close(); };
+}
+
+async function refreshProjectDetail(projectId) {
+  try {
+    const res = await fetch('/api/projects/' + projectId + '/status');
+    const data = await res.json();
+    document.getElementById('detail-tasks').innerHTML = `
+      <div style="display:flex;gap:12px;margin-bottom:12px;">
+        <span style="color:var(--green);">✅ ${data.completed || 0}</span>
+        <span style="color:#FF9800;">🔄 ${data.inProgress || 0}</span>
+        <span style="color:var(--muted);">⏳ ${data.pending || 0}</span>
+        <span style="color:var(--accent);">❌ ${data.failed || 0}</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted);">状态: ${data.status}</div>
+    `;
+    
+    // Inbox
+    if (data.inbox > 0) {
+      document.getElementById('detail-inbox').innerHTML = '<div style="margin-top:12px;color:#FF9800;">📬 ' + data.inbox + ' 项待审批 (需在控制台 approve)</div>';
+    }
+  } catch(e) {}
+}
+
+async function submitFeedback() {
+  const fb = document.getElementById('feedback-input').value.trim();
+  if (!fb || !currentDetailProjectId) return;
+  try {
+    await fetch('/api/projects/' + currentDetailProjectId + '/feedback', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ feedback: fb })
+    });
+    document.getElementById('feedback-input').value = '';
+    refreshProjectDetail(currentDetailProjectId);
+  } catch(e) {}
+}
+
+// Auto refresh dashboard every 10s
+setInterval(() => { if (currentTab === 'dashboard') refreshDashboard(); }, 10000);
 
 // 启动
 loadSessions();

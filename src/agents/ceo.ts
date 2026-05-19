@@ -65,7 +65,7 @@ export class CEO {
   }
 
   async run(project: Project, requirement: string): Promise<void> {
-    const { existsSync, readFileSync } = await import('fs');
+    const { existsSync, readFileSync, writeFileSync } = await import('fs');
     const { join } = await import('path');
     const reqPath = join(project.projectDir, '.tasks', 'REQUIREMENT.md');
 
@@ -85,6 +85,19 @@ export class CEO {
     // Phase 1: 需求 → Task DAG
     project.status = 'planning';
     console.log('\n📋 Phase 1: 需求分析 + 任务规划');
+    // T5.1: 跨项目教训注入
+    const reflectionLog = new (await import('../core/memory.js')).ReflectionLog(project.projectDir + '/.memory');
+    const pastContext = reflectionLog.getPastContext(project.name, 3, 2);
+    if (pastContext) {
+      console.log('\n📚 历史教训已注入 Prompt');
+      const reqPath2 = join(project.projectDir, '.tasks', 'REQUIREMENT.md');
+      if (existsSync(reqPath2)) {
+        const existingReq = readFileSync(reqPath2, 'utf-8');
+        const updatedReq = existingReq + '\n\n## 跨项目历史教训\n' + pastContext;
+        writeFileSync(reqPath2, updatedReq);
+      }
+    }
+    
     const newDag = await plan(requirement, project.projectDir, this.engine);
     project.dag = newDag;
     
