@@ -11,6 +11,7 @@ import { ProtocolBus, type ProtocolRequest } from '../core/protocol.js';
 import { Gate } from '../core/gate.js';
 import { AgentMemory } from '../core/memory.js';
 import { plan } from './planner.js';
+import { discuss } from './phase0-discuss.js';
 import { generate } from './generator.js';
 import { evaluate } from './evaluator.js';
 import { hasCodeExecutorSignature } from '../core/evidence-guard.js';
@@ -63,6 +64,23 @@ export class CEO {
   }
 
   async run(project: Project, requirement: string): Promise<void> {
+    const { existsSync, readFileSync } = await import('fs');
+    const { join } = await import('path');
+    const reqPath = join(project.projectDir, '.tasks', 'REQUIREMENT.md');
+
+    // v6 T1.1: 如果 REQUIREMENT.md 不存在，先自动运行 Phase0
+    if (!existsSync(reqPath)) {
+      console.log('\n🧠 [CEO] 未检测到 REQUIREMENT.md，自动启动 Phase 0 需求讨论...');
+      const result = await discuss(requirement, project.projectDir, this.engine);
+      if (!result.success) {
+        console.error('❌ Phase 0 失败:', result.summary);
+        return;
+      }
+      console.log('✅ Phase 0 完成 → REQUIREMENT.md 已生成');
+    } else {
+      console.log('📄 检测到 REQUIREMENT.md，跳过 Phase 0');
+    }
+
     // Phase 1: 需求 → Task DAG
     project.status = 'planning';
     console.log('\n📋 Phase 1: 需求分析 + 任务规划');
@@ -179,6 +197,46 @@ export class CEO {
       }
 
       if (!approved) break;
+    }
+
+    // Phase 3: DevOps 部署检查
+    project.status = 'reviewing';
+    console.log('\n🚀 Phase 3: 部署检查');
+    const { deploy } = await import('./devops.js');
+    const deployResult = await deploy(project.projectDir, project.dag, project.memory, this.engine);
+    if (deployResult.success) {
+      project.status = 'deployed';
+      console.log(`  ✅ 部署就绪 (${deployResult.configs.length} 配置文件)`);
+    } else {
+      console.log(`  ⚠️  部署暂停: ${deployResult.issues.join(', ')}`);
+    }
+    
+    // 保存部署报告
+    const { writeFileSync: wfs } = await import('fs');
+    wfs(
+      join(project.projectDir, '.tasks', 'DEPLOY.md'),
+      `# 部署报告: ${project.name}\n> ${new Date().toISOString()}\n\n` +
+      `状态: ${deployResult.success ? '就绪' : '暂停'}\n` +
+      `配置: ${deployResult.configs.length} 个\n` +
+      `问题: ${deployResult.issues.length > 0 ? deployResult.issues.join(', ') : '无'}\n`
+    );
+
+    // Phase 4: Marketing SEO 优化
+    if (deployResult.success) {
+      console.log('\n📈 Phase 4: SEO + 营销优化');
+      const { optimizeMarketing } = await import('./marketing.js');
+      const seoResult = await optimizeMarketing(project.projectDir, project.memory, this.engine);
+      if (seoResult.success) {
+        wfs(
+          join(project.projectDir, '.tasks', 'SEO.md'),
+          `# SEO 优化报告: ${project.name}\n> ${new Date().toISOString()}\n\n` +
+          `优化完成: ${seoResult.seoOptimized ? '是' : '否'}\n` +
+          `Analytics: ${seoResult.analyticsAdded ? '已添加' : '未添加'}\n` +
+          `建议 (${seoResult.suggestions.length} 条):\n` +
+          seoResult.suggestions.map((s: string) => `- ${s}`).join('\n')
+        );
+        console.log(`  ✅ SEO 优化完成`);
+      }
     }
 
     console.log(`\n${'='.repeat(50)}`);
