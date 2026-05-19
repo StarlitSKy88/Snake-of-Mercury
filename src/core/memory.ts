@@ -62,14 +62,19 @@ export class AgentMemory {
   private journalPath: string;
   private dirty = false;
   private autoSaveInterval: ReturnType<typeof setInterval>;
+  private static instances: Set<AgentMemory> = new Set();
+  private static exitHandlersSetup = false;
 
   constructor(private baseDir: string) {
     mkdirSync(baseDir, { recursive: true });
     this.indexPath = join(baseDir, 'memory-index.json');
     this.journalPath = join(baseDir, 'memory-journal.jsonl');
     this.load();
-    // P0修复: 进程退出时确保 flush
-    this._setupExitHandlers();
+    AgentMemory.instances.add(this);
+    if (!AgentMemory.exitHandlersSetup) {
+      AgentMemory.exitHandlersSetup = true;
+      this._setupExitHandlers();
+    }
     
     // 每30秒自动保存
     this.autoSaveInterval = setInterval(() => this.flush(), 5000); // P0修复: 30s→5s, 减少crash数据丢失
@@ -279,17 +284,22 @@ export class AgentMemory {
   }
 
   /** 关闭（保存并清理定时器） */
-  /** P0修复: 注册进程退出处理器 */
+  /** 注册进程退出处理器（静态，仅执行一次，遍历所有实例） */
   private _setupExitHandlers(): void {
-    const cleanup = () => { this.flush(); };
-    process.once('SIGINT', cleanup);
-    process.once('SIGTERM', cleanup);
-    process.once('beforeExit', cleanup);
+    const cleanupAll = () => {
+      for (const mem of AgentMemory.instances) {
+        try { mem.flush(); } catch { /* 单个实例失败不影响其他 */ }
+      }
+    };
+    process.once('SIGINT', cleanupAll);
+    process.once('SIGTERM', cleanupAll);
+    process.once('beforeExit', cleanupAll);
   }
 
   close(): void {
     clearInterval(this.autoSaveInterval);
     this.flush();
+    AgentMemory.instances.delete(this);
   }
 }
 

@@ -45,7 +45,7 @@ export class CEO {
   }
 
   createProject(name: string, dir: string): Project {
-    const id = `proj-${Date.now()}`;
+    const id = `proj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const project: Project = {
       id, name,
       status: 'created',
