@@ -9,10 +9,16 @@ import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { agentCall } from './core/agent-loop.js';
-import { THREE_RED_LINES } from './constraints/pua.js';
+import { CEO } from './agents/ceo.js';
 import type { AgentEngine } from './utils/agent-executor.js';
+import { THREE_RED_LINES } from './constraints/pua.js';
 
 const PORT = 3100;
+const engine = (process.env.HARNESS_ENGINE || 'minimax') as AgentEngine;
+const ceo = new CEO(engine);
+
+// SSE 客户端管理
+const sseClients = new Map<string, Set<ServerResponse>>();
 const DISCUSS_DIR = join(process.cwd(), '.tasks', 'discussions');
 
 // ═══════════ 持久化会话 ═══════════
@@ -145,6 +151,17 @@ function json(res: ServerResponse, data: any, status = 200) {
   res.end(JSON.stringify(data));
 }
 
+// 读取请求体
+async function readBody(req: IncomingMessage): Promise<any> {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try { resolve(JSON.parse(body)); } catch { resolve({}); }
+    });
+  });
+}
+
 const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
@@ -272,6 +289,99 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // ═══════ T2.1: 项目管理 API ═══════
+  
+  // 创建项目
+  if (url === '/api/projects/create' && req.method === 'POST') {
+    const body: any = await readBody(req);
+    if (!body.requirement) { json(res, { error: '缺少 requirement' }, 400); return; }
+    
+    const name = body.requirement.slice(0, 40).replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '-');
+    const projectDir = join(process.cwd(), '.projects', name + '-' + Date.now());
+    mkdirSync(projectDir, { recursive: true });
+    
+    const project = ceo.createProject(name, projectDir);
+    
+    // T2.2: 异步执行 — 不等待完成
+    ceo.runAsync(project, body.requirement).catch(err => {
+      console.error(`[${name}] 执行失败:`, err?.message);
+    });
+    
+    json(res, { success: true, projectId: project.id, name: project.name, status: project.status });
+    return;
+  }
+  
+  // 项目列表
+  if (url === '/api/projects/list' && req.method === 'GET') {
+    const projects = ceo.listProjects().map(p => ({
+      id: p.id, name: p.name, status: p.status,
+      tasks: p.dag.summary(),
+      createdAt: p.createdAt,
+    }));
+    json(res, { projects });
+    return;
+  }
+  
+  // 项目状态
+  if (url.startsWith('/api/projects/') && url.endsWith('/status') && req.method === 'GET') {
+    const projectId = url.split('/')[3];
+    const projects = ceo.listProjects();
+    const project = projects.find(p => p.id === projectId);
+    if (!project) { json(res, { error: '项目不存在' }, 404); return; }
+    
+    const tasks = project.dag.list();
+    json(res, {
+      id: project.id, name: project.name, status: project.status,
+      taskCount: tasks.length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      pending: tasks.filter(t => t.status === 'pending').length,
+      failed: tasks.filter(t => t.status === 'failed').length,
+      inbox: ceo.getUserInbox(projectId).length,
+    });
+    return;
+  }
+  
+  // 审批
+  if (url.startsWith('/api/projects/') && url.endsWith('/approve') && req.method === 'POST') {
+    const projectId = url.split('/')[3];
+    const body: any = await readBody(req);
+    const result = ceo.approve(projectId, body.requestId, body.approved !== false, body.reason);
+    json(res, { success: result });
+    return;
+  }
+  
+  // 反馈
+  if (url.startsWith('/api/projects/') && url.endsWith('/feedback') && req.method === 'POST') {
+    const projectId = url.split('/')[3];
+    const body: any = await readBody(req);
+    const { collectFeedbackToRequirements } = await import('./agents/marketing.js');
+    const memory = new (await import('./core/memory.js')).AgentMemory(join(process.cwd(), '.projects', projectId, '.memory'));
+    const reqs = await collectFeedbackToRequirements(body.feedback || '', memory, engine);
+    json(res, { success: true, newRequirements: reqs });
+    return;
+  }
+  
+  // T2.5: SSE 实时进度流
+  if (url.startsWith('/api/projects/') && url.endsWith('/stream') && req.method === 'GET') {
+    const projectId = url.split('/')[3];
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+    res.write(`data: ${JSON.stringify({ type: 'connected', projectId })}\n\n`);
+    
+    if (!sseClients.has(projectId)) sseClients.set(projectId, new Set());
+    sseClients.get(projectId)!.add(res);
+    
+    req.on('close', () => {
+      sseClients.get(projectId)?.delete(res);
+    });
+    return;
+  }
+  
   // 健康检查
   if (url === '/api/health') {
     json(res, { status: 'ok' });

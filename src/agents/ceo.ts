@@ -9,6 +9,7 @@
 import { TaskDAG } from '../core/task-dag.js';
 import { ProtocolBus, type ProtocolRequest } from '../core/protocol.js';
 import { Gate } from '../core/gate.js';
+import { notifier } from '../core/notify.js';
 import { AgentMemory } from '../core/memory.js';
 import { plan } from './planner.js';
 import { discuss } from './phase0-discuss.js';
@@ -241,6 +242,13 @@ export class CEO {
 
     console.log(`\n${'='.repeat(50)}`);
     console.log(`🏁 项目完成: ${completedTasks}/${tasks.length} 个任务通过`);
+    notifier.notify({
+      type: completedTasks === tasks.length ? 'project.completed' : 'project.failed',
+      projectId: project.id, projectName: project.name,
+      message: `${completedTasks}/${tasks.length} 任务通过`,
+      timestamp: new Date().toISOString(),
+      data: { summary: project.dag.summary() },
+    }).catch(() => {});
     console.log(project.dag.summary());
   }
 

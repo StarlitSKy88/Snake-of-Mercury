@@ -75,6 +75,38 @@ vi.mock('../src/executors/code-executor.js', async () => {
     expect(threw).toBe(true);
   });
 
+  it('T2.6: 多项目上下文隔离', async () => {
+    const { CEO } = await import('../src/agents/ceo.js');
+    const ceo = new CEO('minimax');
+    
+    const d1 = join(TEST_DIR, 'iso-a'); const d2 = join(TEST_DIR, 'iso-b');
+    mkdirSync(d1, { recursive: true }); mkdirSync(d2, { recursive: true });
+    
+    const pA = ceo.createProject('iso-a', d1);
+    const pB = ceo.createProject('iso-b', d2);
+    
+    // 项目 A 添加 task
+    pA.dag.create('task-a', { description: 'a', acceptanceCriteria: ['a1'] });
+    expect(pA.dag.list().length).toBe(1);
+    expect(pB.dag.list().length).toBe(0);
+    
+    // 项目 B 添加 task — 不应影响 A
+    pB.dag.create('task-b', { description: 'b', acceptanceCriteria: ['b1'] });
+    expect(pA.dag.list().length).toBe(1);
+    expect(pB.dag.list().length).toBe(1);
+    
+    // Memory 隔离
+    pA.memory.put({ namespace: 'test', type: 'fact', content: 'A的记忆', score: 1 });
+    pB.memory.put({ namespace: 'test', type: 'fact', content: 'B的记忆', score: 1 });
+    
+    const aResults = pA.memory.search('记忆', 'test');
+    const bResults = pB.memory.search('记忆', 'test');
+    expect(aResults.length).toBe(1);
+    expect(bResults.length).toBe(1);
+    expect(aResults[0].entry.content).toBe('A的记忆');
+    expect(bResults[0].entry.content).toBe('B的记忆');
+  });
+
 });
 
 import { agentCall, agentLoop } from '../src/core/agent-loop.js';
@@ -266,6 +298,38 @@ describe('E2E 全链路', () => {
     }
     // 即使没有 mock LLM，runAsync 也应该正确传播错误
     expect(threw).toBe(true);
+  });
+
+  it('T2.6: 多项目上下文隔离', async () => {
+    const { CEO } = await import('../src/agents/ceo.js');
+    const ceo = new CEO('minimax');
+    
+    const d1 = join(TEST_DIR, 'iso-a'); const d2 = join(TEST_DIR, 'iso-b');
+    mkdirSync(d1, { recursive: true }); mkdirSync(d2, { recursive: true });
+    
+    const pA = ceo.createProject('iso-a', d1);
+    const pB = ceo.createProject('iso-b', d2);
+    
+    // 项目 A 添加 task
+    pA.dag.create('task-a', { description: 'a', acceptanceCriteria: ['a1'] });
+    expect(pA.dag.list().length).toBe(1);
+    expect(pB.dag.list().length).toBe(0);
+    
+    // 项目 B 添加 task — 不应影响 A
+    pB.dag.create('task-b', { description: 'b', acceptanceCriteria: ['b1'] });
+    expect(pA.dag.list().length).toBe(1);
+    expect(pB.dag.list().length).toBe(1);
+    
+    // Memory 隔离
+    pA.memory.put({ namespace: 'test', type: 'fact', content: 'A的记忆', score: 1 });
+    pB.memory.put({ namespace: 'test', type: 'fact', content: 'B的记忆', score: 1 });
+    
+    const aResults = pA.memory.search('记忆', 'test');
+    const bResults = pB.memory.search('记忆', 'test');
+    expect(aResults.length).toBe(1);
+    expect(bResults.length).toBe(1);
+    expect(aResults[0].entry.content).toBe('A的记忆');
+    expect(bResults[0].entry.content).toBe('B的记忆');
   });
 
 });
